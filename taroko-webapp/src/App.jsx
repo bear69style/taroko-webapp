@@ -182,14 +182,13 @@ export default function App() {
   };
 
   const applyBatchUrls = async () => {
-    // 取出所有有 Google 轉址的新聞，依序對應 batchUrls
-    const googleRows = newsRows.filter(r => r.url.includes("news.google.com"));
     if (batchUrls.length === 0) { showToast("⚠️ 沒有網址可套用", true); return; }
     setRunning(true); setRunLabel("批次套用網址");
     try {
-      const count = Math.min(googleRows.length, batchUrls.length);
+      // 依序對應精選表從第1則開始的新聞列
+      const count = Math.min(newsRows.length, batchUrls.length);
       for (let i = 0; i < count; i++) {
-        await gasCall({ action: "updateRow", row: googleRows[i].rowNum, field: "url", value: batchUrls[i] });
+        await gasCall({ action: "updateRow", row: newsRows[i].rowNum, field: "url", value: batchUrls[i] });
       }
       showToast("✅ 已套用 " + count + " 個網址到精選表");
       setBatchPasteMode(false);
@@ -455,14 +454,13 @@ export default function App() {
                         ) : (
                           <div>
                             <div style={{ fontSize: 13, color: "#5a5a54", marginBottom: 8 }}>
-                              共 {batchUrls.length} 個網址，將依序對應精選表中的 Google 轉址。<br/>
-                              可調整順序或刪除不需要的網址：
+                              共 {batchUrls.length} 個網址，將依序對應精選表第 1～{batchUrls.length} 則新聞的 D 欄。<br/>
+                              請確認左側標題與右側網址是否一致，可調整順序或刪除：
                             </div>
                             {/* 對照表：左邊新聞標題，右邊即將套用的網址 */}
                             {(() => {
-                              const googleRows = newsRows.filter(r => r.url.includes("news.google.com"));
                               return batchUrls.map((url, idx) => {
-                                const matchRow = googleRows[idx];
+                                const matchRow = newsRows[idx];
                                 return (
                                   <div key={idx} style={{ marginBottom: 8, background: "#fff", border: "1px solid #e0e0d0", borderRadius: 8, overflow: "hidden" }}>
                                     {/* 標題列 */}
@@ -474,7 +472,7 @@ export default function App() {
                                     )}
                                     {!matchRow && (
                                       <div style={{ padding: "6px 10px", background: "#fff0f0", borderBottom: "1px solid #f0c0c0", fontSize: 12, color: "#c0440a" }}>
-                                        ⚠️ 超出 Google 轉址數量，此網址不會被套用
+                                        ⚠️ 超出精選表新聞數量，此網址不會被套用
                                       </div>
                                     )}
                                     {/* 網址 + 操作 */}
