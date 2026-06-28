@@ -55,8 +55,9 @@ export default function App() {
   const [loadingConfig, setLoadingConfig] = useState(true);
   const [batchPasteMode, setBatchPasteMode] = useState(false);
   const [batchUrls, setBatchUrls] = useState([]);
-  const [previewUrl, setPreviewUrl] = useState(null); // 目前預覽的網址
-  const [dragIdx, setDragIdx] = useState(null); // 拖拉中的 index
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [previewData, setPreviewData] = useState({}); // { url: {title, image, domain} }
+  const [dragIdx, setDragIdx] = useState(null);
 
   const night = phase === "night";
   const accent = night ? C.night : C.green;
@@ -228,6 +229,25 @@ export default function App() {
     });
   };
   const handleDragEnd = () => setDragIdx(null);
+
+  // 抓取網址預覽資訊（透過 GAS API）
+  const fetchPreview = async (url) => {
+    if (previewData[url]) {
+      setPreviewUrl(previewUrl === url ? null : url);
+      return;
+    }
+    setPreviewUrl(url);
+    try {
+      const r = await gasCall({ action: "fetchPreview", url });
+      if (r.ok) {
+        setPreviewData(prev => ({ ...prev, [url]: r.preview }));
+      } else {
+        setPreviewData(prev => ({ ...prev, [url]: { title: "無法載入預覽", image: null, domain: new URL(url).hostname } }));
+      }
+    } catch(e) {
+      setPreviewData(prev => ({ ...prev, [url]: { title: "連線失敗", image: null, domain: "" } }));
+    }
+  };
 
   // 勾選/取消
   const toggleCheck = (rowNum) => {
@@ -501,7 +521,7 @@ export default function App() {
                                     <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px" }}>
                                       <div style={{ width: 24, height: 24, borderRadius: "50%", background: matchRow?"#d4ece0":"#f0d0d0", color: matchRow?"#1a4733":"#c0440a", fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{idx+1}</div>
                                       <div style={{ flex: 1, fontSize: 12, color: "#4a86c8", wordBreak: "break-all", lineHeight: 1.4 }}>{url.substring(0,50)}{url.length>50?"…":""}</div>
-                                      <button onClick={() => setPreviewUrl(previewUrl===url?null:url)}
+                                      <button onClick={() => fetchPreview(url)}
                                         style={{ flexShrink: 0, padding: "3px 8px", borderRadius: 4, border: "1px solid #b8c4e0", background: previewUrl===url?"#eef0f8":"#fff", color: "#4a6fa5", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
                                         {previewUrl===url?"✕ 關閉":"👁 預覽"}
                                       </button>
@@ -512,19 +532,40 @@ export default function App() {
                                       <button onClick={() => removeBatchUrl(idx)}
                                         style={{ flexShrink: 0, padding: "3px 8px", borderRadius: 4, border: "1px solid #f0a0a0", background: "#fff0f0", color: "#c0440a", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>✕</button>
                                     </div>
-                                    {/* iframe 預覽區 */}
+                                    {/* 小視窗預覽卡片（像 Google Sheets 那種）*/}
                                     {previewUrl === url && (
-                                      <div style={{ borderTop: "1px solid #e0e0d8" }}>
-                                        <div style={{ padding: "4px 8px", background: "#f4f4f0", fontSize: 11, color: "#8a8a82", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                          <span>⚠️ 部分網站會阻擋嵌入，若顯示空白請用「🔗 開啟」</span>
-                                        </div>
-                                        <iframe
-                                          src={url}
-                                          title={"preview-" + idx}
-                                          style={{ width: "100%", height: 300, border: "none", display: "block" }}
-                                          sandbox="allow-scripts allow-same-origin"
-                                          onError={() => setPreviewUrl(null)}
-                                        />
+                                      <div style={{ borderTop: "1px solid #e0e0d8", padding: "10px 12px", background: "#fafaf8" }}>
+                                        {!previewData[url] ? (
+                                          <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#8a8a82", fontSize: 13 }}>
+                                            <div style={{ width: 16, height: 16, border: "2px solid #d8d8d0", borderTopColor: accent, borderRadius: "50%", animation: "spin .7s linear infinite", flexShrink: 0 }} />
+                                            載入預覽中…
+                                          </div>
+                                        ) : (
+                                          <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                                            {/* 縮圖 */}
+                                            {previewData[url].image && (
+                                              <img src={previewData[url].image} alt="preview"
+                                                style={{ width: 80, height: 60, objectFit: "cover", borderRadius: 6, flexShrink: 0, border: "1px solid #e0e0d8" }}
+                                                onError={e => { e.target.style.display = "none"; }} />
+                                            )}
+                                            {!previewData[url].image && (
+                                              <div style={{ width: 80, height: 60, borderRadius: 6, background: "#e8e8e0", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>📰</div>
+                                            )}
+                                            {/* 標題 + 網域 */}
+                                            <div style={{ flex: 1, minWidth: 0 }}>
+                                              <div style={{ fontSize: 14, fontWeight: 700, color: "#2a2a28", lineHeight: 1.4, marginBottom: 4 }}>
+                                                {previewData[url].title || "（無標題）"}
+                                              </div>
+                                              <div style={{ fontSize: 12, color: "#8a8a82" }}>
+                                                🌐 {previewData[url].domain || new URL(url).hostname}
+                                              </div>
+                                              <a href={url} target="_blank" rel="noreferrer"
+                                                style={{ display: "inline-block", marginTop: 6, fontSize: 12, color: "#4a86c8", textDecoration: "none", padding: "3px 10px", borderRadius: 4, border: "1px solid #b8c4e0", background: "#fff" }}>
+                                                在新分頁開啟 →
+                                              </a>
+                                            </div>
+                                          </div>
+                                        )}
                                       </div>
                                     )}
                                   </div>
