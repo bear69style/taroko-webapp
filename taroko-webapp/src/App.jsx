@@ -4,14 +4,18 @@ import { useState, useEffect, useCallback } from "react";
 const GAS_URL = process.env.REACT_APP_GAS_URL || "";
 
 // ── 呼叫 GAS API ──
-async function gasGet(params = {}) {
+async function gasCall(params = {}) {
   const url = new URL(GAS_URL);
-  Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
+  // 複雜物件轉成 JSON 字串
+  const encoded = {};
+  Object.entries(params).forEach(([k, v]) => {
+    encoded[k] = typeof v === 'object' ? JSON.stringify(v) : String(v);
+  });
+  Object.entries(encoded).forEach(([k, v]) => url.searchParams.set(k, v));
   const res = await fetch(url.toString());
   return res.json();
 }
 
-async function gasPost(body) {
   const res = await fetch(GAS_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -103,7 +107,7 @@ export default function App() {
   // ── 載入設定 ──
   useEffect(() => {
     if (!gasUrl) { setLoadingConfig(false); return; }
-    gasGet({ action: "config" })
+    gasCall({ action: "config" })
       .then((cfg) => {
         if (cfg.ok) {
           setEmailOptions(cfg.emailOptions || []);
@@ -125,7 +129,7 @@ export default function App() {
 
   const saveState = useCallback((ph, cur) => {
     if (!gasUrl) return;
-    gasPost({ action: "setState", state: { phase: ph, current: cur } }).catch(() => {});
+    gasCall({ action: "setState", state: { phase: ph, current: cur } }).catch(() => {});
   }, [gasUrl]);
 
   const advance = useCallback((i) => {
@@ -150,9 +154,9 @@ export default function App() {
     setRunning(true);
     setRunningLabel(label);
     try {
-      const body = { action };
-      if (action === "send") body.sendLine = lineOn;
-      const result = await gasPost(body);
+      const params = { action };
+      if (action === "send") params.sendLine = lineOn;
+      const result = await gasCall(params);
       if (result.ok) {
         showToast("✅ " + label + " 完成");
         if (stepIdx >= 0) advance(stepIdx);
@@ -179,7 +183,7 @@ export default function App() {
     setRunning(true);
     setRunningLabel("寫入 D 欄");
     try {
-      const result = await gasPost({ action: "applyUrls", urls: pastedUrls });
+      const result = await gasCall({ action: "applyUrls", urls: pastedUrls });
       if (result.ok) {
         showToast(`✅ 已將 ${pastedUrls.length} 個網址寫入精選表 D 欄`);
         setPastedUrls([]);
@@ -196,7 +200,7 @@ export default function App() {
   const onEmailChange = async (val) => {
     setEmail(val);
     if (val && gasUrl) {
-      try { await gasPost({ action: "setEmail", email: val }); } catch (e) {}
+      try { await gasCall({ action: "setEmail", email: val }); } catch (e) {}
     }
   };
 
