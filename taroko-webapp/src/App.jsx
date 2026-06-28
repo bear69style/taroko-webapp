@@ -53,8 +53,10 @@ export default function App() {
   const [checkedRows, setCheckedRows] = useState(new Set());
   const [manualUrl, setManualUrl] = useState("");
   const [loadingConfig, setLoadingConfig] = useState(true);
-  const [batchPasteMode, setBatchPasteMode] = useState(false); // 批次貼上還原模式
-  const [batchUrls, setBatchUrls] = useState([]); // 貼入的網址列表（可調整順序）
+  const [batchPasteMode, setBatchPasteMode] = useState(false);
+  const [batchUrls, setBatchUrls] = useState([]);
+  const [previewUrl, setPreviewUrl] = useState(null); // 目前預覽的網址
+  const [dragIdx, setDragIdx] = useState(null); // 拖拉中的 index
 
   const night = phase === "night";
   const accent = night ? C.night : C.green;
@@ -211,6 +213,21 @@ export default function App() {
   const removeBatchUrl = (idx) => {
     setBatchUrls(prev => prev.filter((_, i) => i !== idx));
   };
+
+  // 拖拉排序
+  const handleDragStart = (idx) => setDragIdx(idx);
+  const handleDragOver = (e, idx) => {
+    e.preventDefault();
+    if (dragIdx === null || dragIdx === idx) return;
+    setBatchUrls(prev => {
+      const arr = [...prev];
+      const [moved] = arr.splice(dragIdx, 1);
+      arr.splice(idx, 0, moved);
+      setDragIdx(idx);
+      return arr;
+    });
+  };
+  const handleDragEnd = () => setDragIdx(null);
 
   // 勾選/取消
   const toggleCheck = (rowNum) => {
@@ -455,39 +472,61 @@ export default function App() {
                           <div>
                             <div style={{ fontSize: 13, color: "#5a5a54", marginBottom: 8 }}>
                               共 {batchUrls.length} 個網址，將依序對應精選表第 1～{batchUrls.length} 則新聞的 D 欄。<br/>
-                              請確認左側標題與右側網址是否一致，可調整順序或刪除：
+                              👆 可點「👁 預覽」確認網頁內容，「🔗 開啟」在新分頁開啟。<br/>
+                              ✋ 長按拖動可調整順序，✕ 刪除不需要的：
                             </div>
                             {/* 對照表：左邊新聞標題，右邊即將套用的網址 */}
                             {(() => {
                               return batchUrls.map((url, idx) => {
                                 const matchRow = newsRows[idx];
                                 return (
-                                  <div key={idx} style={{ marginBottom: 8, background: "#fff", border: "1px solid #e0e0d0", borderRadius: 8, overflow: "hidden" }}>
-                                    {/* 標題列 */}
-                                    {matchRow && (
+                                  <div key={idx}
+                                    draggable
+                                    onDragStart={() => handleDragStart(idx)}
+                                    onDragOver={e => handleDragOver(e, idx)}
+                                    onDragEnd={handleDragEnd}
+                                    style={{ marginBottom: 8, background: dragIdx===idx?"#eef6f0":"#fff", border: `1.5px solid ${dragIdx===idx?accent:"#e0e0d0"}`, borderRadius: 8, overflow: "hidden", cursor: "grab", transition: "all .15s" }}>
+                                    {/* 對應新聞標題 */}
+                                    {matchRow ? (
                                       <div style={{ padding: "6px 10px", background: "#f8f8f4", borderBottom: "1px solid #e8e8e0", fontSize: 13, color: "#2a2a28", lineHeight: 1.4 }}>
-                                        <span style={{ fontSize: 11, color: "#8a8a82", marginRight: 6 }}>對應新聞：</span>
-                                        <b>{matchRow.title.substring(0,35)}{matchRow.title.length>35?"…":""}</b>
+                                        <span style={{ fontSize: 11, color: "#8a8a82", marginRight: 4 }}>對應：</span>
+                                        <b>{matchRow.title.substring(0,32)}{matchRow.title.length>32?"…":""}</b>
                                       </div>
-                                    )}
-                                    {!matchRow && (
+                                    ) : (
                                       <div style={{ padding: "6px 10px", background: "#fff0f0", borderBottom: "1px solid #f0c0c0", fontSize: 12, color: "#c0440a" }}>
-                                        ⚠️ 超出精選表新聞數量，此網址不會被套用
+                                        ⚠️ 超出精選表數量，不會套用
                                       </div>
                                     )}
-                                    {/* 網址 + 操作 */}
+                                    {/* 網址列 */}
                                     <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px" }}>
-                                      <div style={{ display: "flex", flexDirection: "column", gap: 2, flexShrink: 0 }}>
-                                        <button onClick={() => moveBatchUrl(idx, -1)} disabled={idx===0}
-                                          style={{ width: 24, height: 20, border: "1px solid #ccc", borderRadius: 3, background: "#fff", cursor: idx===0?"default":"pointer", fontSize: 11, color: idx===0?"#ccc":"#555", lineHeight: 1 }}>▲</button>
-                                        <button onClick={() => moveBatchUrl(idx, 1)} disabled={idx===batchUrls.length-1}
-                                          style={{ width: 24, height: 20, border: "1px solid #ccc", borderRadius: 3, background: "#fff", cursor: idx===batchUrls.length-1?"default":"pointer", fontSize: 11, color: idx===batchUrls.length-1?"#ccc":"#555", lineHeight: 1 }}>▼</button>
-                                      </div>
-                                      <div style={{ width: 22, height: 22, borderRadius: "50%", background: matchRow?"#d4ece0":"#f0d0d0", color: matchRow?"#1a4733":"#c0440a", fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{idx+1}</div>
-                                      <div style={{ flex: 1, fontSize: 12, color: "#4a86c8", wordBreak: "break-all", lineHeight: 1.4 }}>{url.substring(0,55)}{url.length>55?"…":""}</div>
+                                      <div style={{ width: 24, height: 24, borderRadius: "50%", background: matchRow?"#d4ece0":"#f0d0d0", color: matchRow?"#1a4733":"#c0440a", fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{idx+1}</div>
+                                      <div style={{ flex: 1, fontSize: 12, color: "#4a86c8", wordBreak: "break-all", lineHeight: 1.4 }}>{url.substring(0,50)}{url.length>50?"…":""}</div>
+                                      <button onClick={() => setPreviewUrl(previewUrl===url?null:url)}
+                                        style={{ flexShrink: 0, padding: "3px 8px", borderRadius: 4, border: "1px solid #b8c4e0", background: previewUrl===url?"#eef0f8":"#fff", color: "#4a6fa5", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
+                                        {previewUrl===url?"✕ 關閉":"👁 預覽"}
+                                      </button>
+                                      <a href={url} target="_blank" rel="noreferrer"
+                                        style={{ flexShrink: 0, padding: "3px 8px", borderRadius: 4, border: "1px solid #b8d4c2", background: "#eef6f0", color: "#1a4733", fontSize: 12, textDecoration: "none" }}>
+                                        🔗 開啟
+                                      </a>
                                       <button onClick={() => removeBatchUrl(idx)}
                                         style={{ flexShrink: 0, padding: "3px 8px", borderRadius: 4, border: "1px solid #f0a0a0", background: "#fff0f0", color: "#c0440a", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>✕</button>
                                     </div>
+                                    {/* iframe 預覽區 */}
+                                    {previewUrl === url && (
+                                      <div style={{ borderTop: "1px solid #e0e0d8" }}>
+                                        <div style={{ padding: "4px 8px", background: "#f4f4f0", fontSize: 11, color: "#8a8a82", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                          <span>⚠️ 部分網站會阻擋嵌入，若顯示空白請用「🔗 開啟」</span>
+                                        </div>
+                                        <iframe
+                                          src={url}
+                                          title={"preview-" + idx}
+                                          style={{ width: "100%", height: 300, border: "none", display: "block" }}
+                                          sandbox="allow-scripts allow-same-origin"
+                                          onError={() => setPreviewUrl(null)}
+                                        />
+                                      </div>
+                                    )}
                                   </div>
                                 );
                               });
