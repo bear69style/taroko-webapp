@@ -572,8 +572,25 @@ export default function App() {
   const F = { fontFamily: '"Microsoft JhengHei","PingFang TC",sans-serif' };
 
   return (
-    <div id="mainApp" style={{ ...F, maxWidth: parseInt(localStorage.getItem("taroko_width") || "480"), margin: "0 auto", padding: "14px 12px 40px", background: "#fafaf8", minHeight: "100vh", fontSize: fontSize }}>
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}} *{box-sizing:border-box} body{font-size:${fontSize}px}`}</style>
+    <div id="mainApp" style={{ ...F, maxWidth: parseInt(localStorage.getItem("taroko_width") || "480"), margin: "0 auto", padding: "14px 12px 40px", background: "#fafaf8", minHeight: "100vh" }}>
+      <div id="mainContent" style={{ lineHeight: 1.5 }}>
+      <style>{`
+        @keyframes spin{to{transform:rotate(360deg)}}
+        * {box-sizing:border-box}
+        #mainContent {
+          font-size: ${fontSize}px;
+          transform-origin: top left;
+        }
+        #mainContent * { font-size: inherit; }
+        #mainContent .fs-xl { font-size: 1.12em !important; }
+        #mainContent .fs-lg { font-size: 0.97em !important; }
+        #mainContent .fs-md { font-size: 0.88em !important; }
+        #mainContent .fs-sm { font-size: 0.76em !important; }
+        #mainContent .fs-xs { font-size: 0.71em !important; }
+        #mainContent button, #mainContent input, #mainContent textarea, #mainContent select {
+          font-size: inherit !important;
+        }
+      `}</style>
 
       {running && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(250,250,248,.9)", zIndex: 999, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16 }}>
@@ -613,13 +630,13 @@ export default function App() {
       {/* Header */}
       <div style={{ borderBottom: `2px solid ${C.green}`, paddingBottom: 10, marginBottom: 14 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ fontSize: 19, fontWeight: 700, color: C.green }}>📰 輿情日報操作導引</div>
+          <div style={{ fontSize: "1.12em", fontWeight: 700, color: C.green }}>📰 輿情日報操作導引</div>
           <button onClick={() => setShowSettings(s => !s)}
             style={{ padding: "6px 10px", borderRadius: 8, border: `1.5px solid ${showSettings ? C.green : "#e0e0d8"}`, background: showSettings ? "#eef6f0" : "#fff", color: showSettings ? C.green : "#8a8a82", fontSize: 14, cursor: "pointer", fontFamily: "inherit", fontWeight: 700 }}>
             ⚙️ 設定
           </button>
         </div>
-        <div style={{ fontSize: 15, color: "#8a8a82", marginTop: 3 }}>跟著亮起的步驟做，不會漏</div>
+        <div style={{ fontSize: "0.88em", color: "#8a8a82", marginTop: 3 }}>跟著亮起的步驟做，不會漏</div>
       </div>
 
       {/* 設定面板 */}
@@ -673,9 +690,9 @@ export default function App() {
 
       {/* 信箱 */}
       <div style={{ display: "flex", flexDirection: "column", gap: 2, padding: "9px 11px", borderRadius: 7, marginBottom: 14, border: `1.5px solid ${email ? "#cfe3d6" : "#f0c0a0"}`, background: email ? "#eef6f0" : "#fff4ec" }}>
-        <span style={{ fontSize: 14.5, fontWeight: 700, color: email ? "#5a7a64" : "#c0440a" }}>📬 本次日報寄給</span>
+        <span style={{ fontSize: "0.85em", fontWeight: 700, color: email ? "#5a7a64" : "#c0440a" }}>📬 本次日報寄給</span>
         <select value={email} onChange={e => onEmailChange(e.target.value)}
-          style={{ width: "100%", padding: "8px 9px", borderRadius: 5, border: "1.5px solid #b8d4c2", background: "#fff", fontSize: 16.5, fontWeight: 700, color: C.green, fontFamily: "inherit", margin: "4px 0 2px" }}>
+          style={{ width: "100%", padding: "8px 9px", borderRadius: 5, border: "1.5px solid #b8d4c2", background: "#fff", fontSize: "0.97em", fontWeight: 700, color: C.green, fontFamily: "inherit", margin: "4px 0 2px" }}>
           <option value="">— 請選擇你是誰 —</option>
           {emailOptions.map(o => <option key={o.email} value={o.email}>{o.name}</option>)}
         </select>
@@ -688,14 +705,14 @@ export default function App() {
       <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
         {[["morning","☀️ 當天早上查",false],["night","🌙 前一晚預查",true]].map(([p,label,isNight]) => (
           <button key={p} onClick={() => switchPhase(p)}
-            style={{ flex: 1, padding: "11px 6px", borderRadius: 8, fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", border: `2px solid ${phase===p?(isNight?C.night:C.green):(isNight?C.nightBorder:C.greenBorder)}`, background: phase===p?(isNight?C.night:C.green):(isNight?C.nightLight:C.greenLight), color: phase===p?"#fff":(isNight?C.night:C.green), textAlign: "center", minHeight: 44 }}>
+            style={{ flex: 1, padding: "11px 6px", borderRadius: 8, fontSize: "0.88em", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", border: `2px solid ${phase===p?(isNight?C.night:C.green):(isNight?C.nightBorder:C.greenBorder)}`, background: phase===p?(isNight?C.night:C.green):(isNight?C.nightLight:C.greenLight), color: phase===p?"#fff":(isNight?C.night:C.green), textAlign: "center", minHeight: 44 }}>
             {label}
           </button>
         ))}
       </div>
 
       {/* 說明條 */}
-      <div style={{ borderLeft: `3px solid ${accent}`, padding: "8px 10px", borderRadius: 4, fontSize: 15, color: night?C.night:"#3a5a48", marginBottom: 16, lineHeight: 1.5, background: night?"#eef0f8":"#f0f4f1" }}>
+      <div style={{ borderLeft: `3px solid ${accent}`, padding: "8px 10px", borderRadius: 4, fontSize: "0.88em", color: night?C.night:"#3a5a48", marginBottom: 16, lineHeight: 1.5, background: night?"#eef0f8":"#f0f4f1" }}>
         {phase==="morning" ? "當天早上輪值：撈取 → 打底 → 校對 → 直接寄出，共 4 步。" : "前一晚預查：撈取 → 打底 → 校對 → 存保險箱。明早再還原 → 撈早報 → 補收融合 → 再次校對 → 寄出。"}
       </div>
 
@@ -709,7 +726,7 @@ export default function App() {
               <div style={{ width: 30, height: 30, borderRadius: "50%", background: isDone?C.success:isActive?(night?"#4a6fa5":C.orange):"#f0f0e8", color: isDone||isActive?"#fff":"#8a8a82", fontWeight: 700, fontSize: 15, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: isActive?`0 0 0 3px ${night?"#d0dff5":"#f7e2cf"}`:"none" }}>
                 {isDone?"✓":i+1}
               </div>
-              <div style={{ fontWeight: 700, fontSize: 16.5, flex: 1, color: isActive?(night?C.night:C.orange):"#2a2a28" }}>
+              <div style={{ fontWeight: 700, fontSize: "0.97em", flex: 1, color: isActive?(night?C.night:C.orange):"#2a2a28" }}>
                 {step.label}
                 {qualityIssues.length > 0 && step.isProofread && isActive && (
                   <span style={{ fontSize: 13, color: C.red, marginLeft: 8 }}>⚠️ {qualityIssues.length} 個問題</span>
@@ -724,7 +741,7 @@ export default function App() {
                 {step.desc && (
                   <ul style={{ listStyle: "none", margin: "4px 0 10px" }}>
                     {step.desc.map((d, j) => (
-                      <li key={j} style={{ position: "relative", paddingLeft: 16, marginBottom: 6, fontSize: 15.5, color: "#4a4a44", lineHeight: 1.5 }}>
+                      <li key={j} style={{ position: "relative", paddingLeft: 16, marginBottom: 6, fontSize: "0.91em", color: "#4a4a44", lineHeight: 1.5 }}>
                         <span style={{ position: "absolute", left: 4, color: night?"#4a6fa5":C.orange, fontWeight: 700 }}>·</span>{d}
                       </li>
                     ))}
@@ -750,8 +767,8 @@ export default function App() {
                   <div>
                     {/* 工具列 */}
                     <div style={{ display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
-                      <button onClick={() => loadNews()} style={{ padding: "7px 10px", borderRadius: 6, border: `1px solid ${accent}`, background: "#fff", color: accent, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>🔄 重新載入</button>
-                      <button onClick={openAllUrls} style={{ padding: "7px 10px", borderRadius: 6, border: `1px solid ${accent}`, background: "#fff", color: accent, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>🌐 開啟全部</button>
+                      <button onClick={() => loadNews()} style={{ padding: "7px 10px", borderRadius: 6, border: `1px solid ${accent}`, background: "#fff", color: accent, fontSize: "0.76em", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>🔄 重新載入</button>
+                      <button onClick={openAllUrls} style={{ padding: "7px 10px", borderRadius: 6, border: `1px solid ${accent}`, background: "#fff", color: accent, fontSize: "0.76em", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>🌐 開啟全部</button>
                       <button onClick={() => { setBatchPasteMode(m => !m); setBatchUrls([]); }}
                         style={{ padding: "7px 10px", borderRadius: 6, border: `1.5px solid ${batchPasteMode?"#c0440a":accent}`, background: batchPasteMode?"#fff0f0":"#fff", color: batchPasteMode?"#c0440a":accent, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
                         {batchPasteMode ? "✕ 取消" : "📋 批次貼上還原"}
@@ -800,7 +817,7 @@ export default function App() {
                                     {/* 網址列 */}
                                     <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px" }}>
                                       <div style={{ width: 24, height: 24, borderRadius: "50%", background: matchRow?"#d4ece0":"#f0d0d0", color: matchRow?"#1a4733":"#c0440a", fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{idx+1}</div>
-                                      <div style={{ flex: 1, fontSize: 12, color: "#4a86c8", wordBreak: "break-all", lineHeight: 1.4 }}>{url.substring(0,50)}{url.length>50?"…":""}</div>
+                                      <div style={{ flex: 1, fontSize: "0.7em", color: "#4a86c8", wordBreak: "break-all", lineHeight: 1.4 }}>{url.substring(0,50)}{url.length>50?"…":""}</div>
                                       <button onClick={() => fetchPreview(url)}
                                         style={{ flexShrink: 0, padding: "3px 8px", borderRadius: 4, border: "1px solid #b8c4e0", background: previewUrl===url?"#eef0f8":"#fff", color: "#4a6fa5", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
                                         {previewUrl===url?"✕ 關閉":"👁 預覽"}
@@ -840,7 +857,7 @@ export default function App() {
                                                 🌐 {previewData[url].domain || new URL(url).hostname}
                                               </div>
                                               <a href={url} target="_blank" rel="noreferrer"
-                                                style={{ display: "inline-block", marginTop: 6, fontSize: 12, color: "#4a86c8", textDecoration: "none", padding: "3px 10px", borderRadius: 4, border: "1px solid #b8c4e0", background: "#fff" }}>
+                                                style={{ display: "inline-block", marginTop: 6, fontSize: "0.7em", color: "#4a86c8", textDecoration: "none", padding: "3px 10px", borderRadius: 4, border: "1px solid #b8c4e0", background: "#fff" }}>
                                                 在新分頁開啟 →
                                               </a>
                                             </div>
@@ -871,7 +888,7 @@ export default function App() {
                     {checkedRows.size > 0 && (
                       <div style={{ display: "flex", gap: 8, marginBottom: 10, padding: "8px 10px", background: "#fff8f0", borderRadius: 8, border: `1px solid ${C.orange}`, alignItems: "center" }}>
                         <span style={{ fontSize: 14, fontWeight: 700, color: C.orange, flex: 1 }}>已選 {checkedRows.size} 則</span>
-                        <button onClick={openChecked} style={{ padding: "6px 12px", borderRadius: 6, border: "none", background: accent, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>🌐 開啟選取</button>
+                        <button onClick={openChecked} style={{ padding: "6px 12px", borderRadius: 6, border: "none", background: accent, color: "#fff", fontSize: "0.76em", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>🌐 開啟選取</button>
                         <button onClick={deleteChecked} style={{ padding: "6px 12px", borderRadius: 6, border: "none", background: C.red, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>🗑️ 刪除選取</button>
                       </div>
                     )}
@@ -905,14 +922,14 @@ export default function App() {
                             {/* 媒體名 + 時間 */}
                             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
                               <span onClick={() => setEditCell({ rowNum: row.rowNum, field: "source", value: row.source })}
-                                style={{ fontSize: 13, fontWeight: 700, color: isNetMedia?"#c0440a":accent, background: isNetMedia?"#fff0f0":"#eef6f0", padding: "2px 8px", borderRadius: 4, cursor: "pointer", border: `1px solid ${isNetMedia?"#f0a0a0":"#b8d4c2"}` }}>
+                                style={{ fontSize: "0.76em", fontWeight: 700, color: isNetMedia?"#c0440a":accent, background: isNetMedia?"#fff0f0":"#eef6f0", padding: "2px 8px", borderRadius: 4, cursor: "pointer", border: `1px solid ${isNetMedia?"#f0a0a0":"#b8d4c2"}` }}>
                                 {row.source||"（空白）"} ✏️
                               </span>
-                              <span style={{ fontSize: 12, color: "#9a9a92" }}>{row.time?row.time.substring(5,16):""}</span>
+                              <span style={{ fontSize: "0.7em", color: "#9a9a92" }}>{row.time?row.time.substring(5,16):""}</span>
                             </div>
                             {/* 標題 */}
                             <div onClick={() => setEditCell({ rowNum: row.rowNum, field: "title", value: row.title })}
-                              style={{ fontSize: 15.5, fontWeight: 500, color: "#2a2a28", lineHeight: 1.5, marginBottom: 6, cursor: "pointer" }}>
+                              style={{ fontSize: "0.91em", fontWeight: 500, color: "#2a2a28", lineHeight: 1.5, marginBottom: 6, cursor: "pointer" }}>
                               {row.title} <span style={{ fontSize: 13, color: "#9a9a92" }}>✏️</span>
                             </div>
                             {/* 網址區 */}
@@ -928,11 +945,11 @@ export default function App() {
                               // 正常網址
                               <div style={{ display: "flex", alignItems: "flex-start", gap: 6 }}>
                                 <div onClick={() => setEditCell({ rowNum: row.rowNum, field: "url", value: row.url })}
-                                  style={{ flex: 1, fontSize: 12, color: "#4a86c8", wordBreak: "break-all", lineHeight: 1.4, cursor: "pointer" }}>
+                                  style={{ flex: 1, fontSize: "0.7em", color: "#4a86c8", wordBreak: "break-all", lineHeight: 1.4, cursor: "pointer" }}>
                                   {row.url ? row.url.substring(0,60)+(row.url.length>60?"…":"") : "（無網址）"}
                                 </div>
                                 <a href={row.url} target="_blank" rel="noreferrer"
-                                  style={{ fontSize: 13, color: "#4a86c8", whiteSpace: "nowrap", padding: "2px 8px", borderRadius: 4, border: "1px solid #b8c4e0", textDecoration: "none", flexShrink: 0 }}>
+                                  style={{ fontSize: "0.76em", color: "#4a86c8", whiteSpace: "nowrap", padding: "2px 8px", borderRadius: 4, border: "1px solid #b8c4e0", textDecoration: "none", flexShrink: 0 }}>
                                   開啟
                                 </a>
                                 <button onClick={() => deleteRow(row.rowNum, row.title)}
@@ -1012,8 +1029,9 @@ export default function App() {
         );
       })}
 
-      <div onClick={resetAll} style={{ display: "block", textAlign: "center", marginTop: 20, fontSize: 15, color: "#8a8a82", cursor: "pointer", textDecoration: "underline", padding: 8 }}>↺ 全部重置，重新開始今天的流程</div>
-      <div style={{ fontSize: 14, color: "#9a9a92", textAlign: "center", marginTop: 14, lineHeight: 1.6 }}>每完成一步會自動點亮下一步。<br />進度會自動儲存，關掉再開不會消失。</div>
+      <div onClick={resetAll} style={{ display: "block", textAlign: "center", marginTop: 20, fontSize: "0.85em", color: "#8a8a82", cursor: "pointer", textDecoration: "underline", padding: 8 }}>↺ 全部重置，重新開始今天的流程</div>
+      <div style={{ fontSize: "0.82em", color: "#9a9a92", textAlign: "center", marginTop: 14, lineHeight: 1.6 }}>每完成一步會自動點亮下一步。<br />進度會自動儲存，關掉再開不會消失。</div>
+      </div>
     </div>
   );
 }
