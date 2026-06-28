@@ -256,19 +256,25 @@ export default function App() {
     } catch(e) { showToast("❌ 連線失敗", true); }
   };
 
-  // 手動新增網址（Step 2-C）
+  // 手動新增網址：寫入分頁後直接呼叫 importManual，一鍵完成
   const addManualUrl = async () => {
     const url = manualUrl.trim();
     if (!url.startsWith("http")) { showToast("⚠️ 請輸入 http 開頭的網址", true); return; }
-    setRunning(true); setRunLabel("匯入手動網址");
+    setRunning(true); setRunLabel("加入並抓取");
     try {
-      // 先寫入「手動加入網址」分頁
-      const r = await gasCall({ action: "addManualUrl", url });
-      if (r.ok) {
+      // Step1：寫入「手動加入網址」分頁
+      const r1 = await gasCall({ action: "addManualUrl", url });
+      if (!r1.ok) { showToast("❌ 寫入失敗：" + (r1.error || ""), true); return; }
+      // Step2：直接呼叫 importManual 抓取標題
+      const r2 = await gasCall({ action: "importManual" });
+      if (r2.ok) {
         setManualUrl("");
-        showToast("✅ 已加入，請接著點「匯入手動補充的新聞」");
-      } else showToast("❌ " + (r.error || "失敗"), true);
-    } catch(e) { showToast("❌ 連線失敗", true); }
+        showToast("✅ 已加入並抓取完成，重新載入精選表");
+        loadNews();
+      } else {
+        showToast("❌ 抓取失敗：" + (r2.error || ""), true);
+      }
+    } catch(e) { showToast("❌ 連線失敗：" + e.message, true); }
     finally { setRunning(false); }
   };
 
@@ -424,7 +430,6 @@ export default function App() {
                     <div style={{ display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
                       <button onClick={() => loadNews()} style={{ padding: "7px 10px", borderRadius: 6, border: `1px solid ${accent}`, background: "#fff", color: accent, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>🔄 重新載入</button>
                       <button onClick={openAllUrls} style={{ padding: "7px 10px", borderRadius: 6, border: `1px solid ${accent}`, background: "#fff", color: accent, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>🌐 開啟全部</button>
-                      <button onClick={() => runAction("批次還原Google轉址", "batchRestore", -1).then(() => loadNews())} style={{ padding: "7px 10px", borderRadius: 6, border: `1px solid ${accent}`, background: "#fff", color: accent, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>🔗 批次還原</button>
                       <button onClick={() => { setBatchPasteMode(m => !m); setBatchUrls([]); }}
                         style={{ padding: "7px 10px", borderRadius: 6, border: `1.5px solid ${batchPasteMode?"#c0440a":accent}`, background: batchPasteMode?"#fff0f0":"#fff", color: batchPasteMode?"#c0440a":accent, fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
                         {batchPasteMode ? "✕ 取消" : "📋 批次貼上還原"}
@@ -453,20 +458,42 @@ export default function App() {
                               共 {batchUrls.length} 個網址，將依序對應精選表中的 Google 轉址。<br/>
                               可調整順序或刪除不需要的網址：
                             </div>
-                            {batchUrls.map((url, idx) => (
-                              <div key={idx} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, background: "#fff", border: "1px solid #e0e0d0", borderRadius: 6, padding: "6px 8px" }}>
-                                <div style={{ display: "flex", flexDirection: "column", gap: 2, flexShrink: 0 }}>
-                                  <button onClick={() => moveBatchUrl(idx, -1)} disabled={idx===0}
-                                    style={{ width: 24, height: 20, border: "1px solid #ccc", borderRadius: 3, background: "#fff", cursor: idx===0?"default":"pointer", fontSize: 11, color: idx===0?"#ccc":"#555", lineHeight: 1 }}>▲</button>
-                                  <button onClick={() => moveBatchUrl(idx, 1)} disabled={idx===batchUrls.length-1}
-                                    style={{ width: 24, height: 20, border: "1px solid #ccc", borderRadius: 3, background: "#fff", cursor: idx===batchUrls.length-1?"default":"pointer", fontSize: 11, color: idx===batchUrls.length-1?"#ccc":"#555", lineHeight: 1 }}>▼</button>
-                                </div>
-                                <div style={{ width: 22, height: 22, borderRadius: "50%", background: "#f0e0b0", color: "#a06000", fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{idx+1}</div>
-                                <div style={{ flex: 1, fontSize: 12, color: "#4a86c8", wordBreak: "break-all", lineHeight: 1.4 }}>{url.substring(0,60)}{url.length>60?"…":""}</div>
-                                <button onClick={() => removeBatchUrl(idx)}
-                                  style={{ flexShrink: 0, padding: "3px 8px", borderRadius: 4, border: "1px solid #f0a0a0", background: "#fff0f0", color: "#c0440a", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>✕</button>
-                              </div>
-                            ))}
+                            {/* 對照表：左邊新聞標題，右邊即將套用的網址 */}
+                            {(() => {
+                              const googleRows = newsRows.filter(r => r.url.includes("news.google.com"));
+                              return batchUrls.map((url, idx) => {
+                                const matchRow = googleRows[idx];
+                                return (
+                                  <div key={idx} style={{ marginBottom: 8, background: "#fff", border: "1px solid #e0e0d0", borderRadius: 8, overflow: "hidden" }}>
+                                    {/* 標題列 */}
+                                    {matchRow && (
+                                      <div style={{ padding: "6px 10px", background: "#f8f8f4", borderBottom: "1px solid #e8e8e0", fontSize: 13, color: "#2a2a28", lineHeight: 1.4 }}>
+                                        <span style={{ fontSize: 11, color: "#8a8a82", marginRight: 6 }}>對應新聞：</span>
+                                        <b>{matchRow.title.substring(0,35)}{matchRow.title.length>35?"…":""}</b>
+                                      </div>
+                                    )}
+                                    {!matchRow && (
+                                      <div style={{ padding: "6px 10px", background: "#fff0f0", borderBottom: "1px solid #f0c0c0", fontSize: 12, color: "#c0440a" }}>
+                                        ⚠️ 超出 Google 轉址數量，此網址不會被套用
+                                      </div>
+                                    )}
+                                    {/* 網址 + 操作 */}
+                                    <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px" }}>
+                                      <div style={{ display: "flex", flexDirection: "column", gap: 2, flexShrink: 0 }}>
+                                        <button onClick={() => moveBatchUrl(idx, -1)} disabled={idx===0}
+                                          style={{ width: 24, height: 20, border: "1px solid #ccc", borderRadius: 3, background: "#fff", cursor: idx===0?"default":"pointer", fontSize: 11, color: idx===0?"#ccc":"#555", lineHeight: 1 }}>▲</button>
+                                        <button onClick={() => moveBatchUrl(idx, 1)} disabled={idx===batchUrls.length-1}
+                                          style={{ width: 24, height: 20, border: "1px solid #ccc", borderRadius: 3, background: "#fff", cursor: idx===batchUrls.length-1?"default":"pointer", fontSize: 11, color: idx===batchUrls.length-1?"#ccc":"#555", lineHeight: 1 }}>▼</button>
+                                      </div>
+                                      <div style={{ width: 22, height: 22, borderRadius: "50%", background: matchRow?"#d4ece0":"#f0d0d0", color: matchRow?"#1a4733":"#c0440a", fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{idx+1}</div>
+                                      <div style={{ flex: 1, fontSize: 12, color: "#4a86c8", wordBreak: "break-all", lineHeight: 1.4 }}>{url.substring(0,55)}{url.length>55?"…":""}</div>
+                                      <button onClick={() => removeBatchUrl(idx)}
+                                        style={{ flexShrink: 0, padding: "3px 8px", borderRadius: 4, border: "1px solid #f0a0a0", background: "#fff0f0", color: "#c0440a", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>✕</button>
+                                    </div>
+                                  </div>
+                                );
+                              });
+                            })()}
                             <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
                               <button onClick={() => { setBatchUrls([]); }}
                                 style={{ flex: 1, padding: "9px", borderRadius: 7, border: "1.5px solid #ccc", background: "#fff", color: "#555", fontSize: 14, cursor: "pointer", fontFamily: "inherit", fontWeight: 700 }}>
