@@ -253,6 +253,18 @@ function GoogleUrlInput({ rowNum, accent, onConfirm, onOpen }) {
 }
 
 export default function App() {
+  // 字體大小設定（存在 localStorage）
+  const [fontSize, setFontSize] = useState(() => {
+    const saved = localStorage.getItem("taroko_fontSize");
+    return saved ? parseInt(saved) : 17;
+  });
+  const [showSettings, setShowSettings] = useState(false);
+
+  const changeFontSize = (size) => {
+    setFontSize(size);
+    localStorage.setItem("taroko_fontSize", size);
+  };
+
   const [phase, setPhase] = useState("morning");
   const [current, setCurrent] = useState(0);
   const [email, setEmail] = useState("");
@@ -560,8 +572,8 @@ export default function App() {
   const F = { fontFamily: '"Microsoft JhengHei","PingFang TC",sans-serif' };
 
   return (
-    <div style={{ ...F, maxWidth: 480, margin: "0 auto", padding: "14px 12px 40px", background: "#fafaf8", minHeight: "100vh", fontSize: 17 }}>
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}} *{box-sizing:border-box}`}</style>
+    <div id="mainApp" style={{ ...F, maxWidth: parseInt(localStorage.getItem("taroko_width") || "480"), margin: "0 auto", padding: "14px 12px 40px", background: "#fafaf8", minHeight: "100vh", fontSize: fontSize }}>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}} *{box-sizing:border-box} body{font-size:${fontSize}px}`}</style>
 
       {running && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(250,250,248,.9)", zIndex: 999, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16 }}>
@@ -600,9 +612,64 @@ export default function App() {
 
       {/* Header */}
       <div style={{ borderBottom: `2px solid ${C.green}`, paddingBottom: 10, marginBottom: 14 }}>
-        <div style={{ fontSize: 19, fontWeight: 700, color: C.green }}>📰 輿情日報操作導引</div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ fontSize: 19, fontWeight: 700, color: C.green }}>📰 輿情日報操作導引</div>
+          <button onClick={() => setShowSettings(s => !s)}
+            style={{ padding: "6px 10px", borderRadius: 8, border: `1.5px solid ${showSettings ? C.green : "#e0e0d8"}`, background: showSettings ? "#eef6f0" : "#fff", color: showSettings ? C.green : "#8a8a82", fontSize: 14, cursor: "pointer", fontFamily: "inherit", fontWeight: 700 }}>
+            ⚙️ 設定
+          </button>
+        </div>
         <div style={{ fontSize: 15, color: "#8a8a82", marginTop: 3 }}>跟著亮起的步驟做，不會漏</div>
       </div>
+
+      {/* 設定面板 */}
+      {showSettings && (
+        <div style={{ background: "#f4f4f0", border: "1.5px solid #e0e0d8", borderRadius: 10, padding: "14px 16px", marginBottom: 14 }}>
+          <div style={{ fontWeight: 700, fontSize: 15, color: "#2a2a28", marginBottom: 12 }}>⚙️ 顯示設定</div>
+
+          {/* 字體大小 */}
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 14, color: "#5a5a54", marginBottom: 8, fontWeight: 700 }}>字體大小</div>
+            <div style={{ display: "flex", gap: 8 }}>
+              {[
+                { label: "小", size: 14, desc: "緊湊" },
+                { label: "標準", size: 17, desc: "預設" },
+                { label: "大", size: 20, desc: "清晰" },
+                { label: "特大", size: 23, desc: "醒目" },
+              ].map(opt => (
+                <button key={opt.size} onClick={() => changeFontSize(opt.size)}
+                  style={{ flex: 1, padding: "10px 4px", borderRadius: 8, border: `2px solid ${fontSize === opt.size ? C.green : "#e0e0d8"}`, background: fontSize === opt.size ? "#eef6f0" : "#fff", color: fontSize === opt.size ? C.green : "#5a5a54", cursor: "pointer", fontFamily: "inherit", fontWeight: fontSize === opt.size ? 700 : 400, textAlign: "center", transition: "all .15s" }}>
+                  <div style={{ fontSize: opt.size * 0.8, fontWeight: 700, marginBottom: 2 }}>A</div>
+                  <div style={{ fontSize: 12 }}>{opt.label}</div>
+                </button>
+              ))}
+            </div>
+            <div style={{ fontSize: 13, color: "#8a8a82", marginTop: 8 }}>
+              目前：{fontSize}px — <span style={{ fontSize }}>這是預覽文字大小</span>
+            </div>
+          </div>
+
+          {/* 寬度設定 */}
+          <div>
+            <div style={{ fontSize: 14, color: "#5a5a54", marginBottom: 8, fontWeight: 700 }}>版面寬度</div>
+            <div style={{ display: "flex", gap: 8 }}>
+              {[
+                { label: "窄版", width: 420, desc: "手機" },
+                { label: "標準", width: 600, desc: "平板" },
+                { label: "寬版", width: 800, desc: "大螢幕" },
+              ].map(opt => (
+                <button key={opt.width}
+                  onClick={() => { localStorage.setItem("taroko_width", opt.width); document.getElementById("mainApp").style.maxWidth = opt.width + "px"; }}
+                  style={{ flex: 1, padding: "10px 4px", borderRadius: 8, border: "1.5px solid #e0e0d8", background: "#fff", color: "#5a5a54", cursor: "pointer", fontFamily: "inherit", textAlign: "center" }}>
+                  <div style={{ fontSize: 18, marginBottom: 2 }}>{opt.label === "窄版" ? "📱" : opt.label === "標準" ? "📋" : "🖥️"}</div>
+                  <div style={{ fontSize: 13 }}>{opt.label}</div>
+                  <div style={{ fontSize: 11, color: "#9a9a92" }}>{opt.desc}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 信箱 */}
       <div style={{ display: "flex", flexDirection: "column", gap: 2, padding: "9px 11px", borderRadius: 7, marginBottom: 14, border: `1.5px solid ${email ? "#cfe3d6" : "#f0c0a0"}`, background: email ? "#eef6f0" : "#fff4ec" }}>
