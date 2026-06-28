@@ -215,18 +215,22 @@ export default function App() {
     setBatchUrls(prev => prev.filter((_, i) => i !== idx));
   };
 
-  // 拖拉排序
+  // 拖拉排序（交換模式：只有兩個互換，其他不動）
   const handleDragStart = (idx) => setDragIdx(idx);
   const handleDragOver = (e, idx) => {
+    e.preventDefault();
+    // 拖拉過程中不即時交換，只在 drop 時才交換
+  };
+  const handleDrop = (e, idx) => {
     e.preventDefault();
     if (dragIdx === null || dragIdx === idx) return;
     setBatchUrls(prev => {
       const arr = [...prev];
-      const [moved] = arr.splice(dragIdx, 1);
-      arr.splice(idx, 0, moved);
-      setDragIdx(idx);
+      // 交換兩個位置
+      [arr[dragIdx], arr[idx]] = [arr[idx], arr[dragIdx]];
       return arr;
     });
+    setDragIdx(null);
   };
   const handleDragEnd = () => setDragIdx(null);
 
@@ -503,9 +507,10 @@ export default function App() {
                                   <div key={idx}
                                     draggable
                                     onDragStart={() => handleDragStart(idx)}
-                                    onDragOver={e => handleDragOver(e, idx)}
+                                    onDragOver={e => e.preventDefault()}
+                                    onDrop={e => handleDrop(e, idx)}
                                     onDragEnd={handleDragEnd}
-                                    style={{ marginBottom: 8, background: dragIdx===idx?"#eef6f0":"#fff", border: `1.5px solid ${dragIdx===idx?accent:"#e0e0d0"}`, borderRadius: 8, overflow: "hidden", cursor: "grab", transition: "all .15s" }}>
+                                    style={{ marginBottom: 8, background: dragIdx===idx?"#eef6f0":"#fff", border: `1.5px solid ${dragIdx===idx?accent:"#e0e0d0"}`, borderRadius: 8, overflow: "hidden", cursor: "grab", transition: "all .15s", opacity: dragIdx===idx?0.6:1 }}>
                                     {/* 對應新聞標題 */}
                                     {matchRow ? (
                                       <div style={{ padding: "6px 10px", background: "#f8f8f4", borderBottom: "1px solid #e8e8e0", fontSize: 13, color: "#2a2a28", lineHeight: 1.4 }}>
