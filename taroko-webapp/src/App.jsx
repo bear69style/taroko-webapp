@@ -37,6 +37,80 @@ const C = {
   orange: "#d97a28", red: "#c0440a", success: "#2e7d52",
 };
 
+// iOS 友善的 Google 轉址輸入元件
+function GoogleUrlInput({ rowNum, accent, onConfirm, onOpen }) {
+  const [val, setVal] = useState("");
+  const [pasted, setPasted] = useState(false);
+
+  const handlePaste = async () => {
+    try {
+      // 嘗試用 Clipboard API 讀取剪貼簿（iOS 17+ 支援）
+      const text = await navigator.clipboard.readText();
+      if (text && text.startsWith("http")) {
+        setVal(text.trim());
+        setPasted(true);
+      } else {
+        alert("剪貼簿內容不是網址，請先複製新聞網址後再試");
+      }
+    } catch(e) {
+      // Clipboard API 失敗（需要使用者授權），改用手動貼上提示
+      alert("請長按下方輸入框，點「貼上」來貼入網址");
+    }
+  };
+
+  return (
+    <div style={{ background: "#fff3cd", border: "1px solid #f0c840", borderRadius: 8, padding: "10px" }}>
+      <div style={{ fontSize: 12, color: "#a05000", marginBottom: 8, fontWeight: 700 }}>
+        ⚠️ Google 轉址，需要還原真實網址
+      </div>
+      {/* 步驟說明 */}
+      <div style={{ fontSize: 12, color: "#7a6000", marginBottom: 8, lineHeight: 1.8, background: "#fffdf0", borderRadius: 6, padding: "6px 8px" }}>
+        <b>操作步驟：</b><br/>
+        1. 點「🔗 開啟新聞」→ 等頁面載入<br/>
+        2. 長按 Safari 網址列 → 點「複製」<br/>
+        3. 點「📋 從剪貼簿貼上」或長按輸入框貼上<br/>
+        4. 確認網址後點「✅ 確認」
+      </div>
+      {/* 開啟 + 剪貼簿按鈕 */}
+      <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+        <button onClick={onOpen}
+          style={{ flex: 1, padding: "9px", borderRadius: 7, border: "1px solid #b8d4c2", background: "#eef6f0", color: "#1a4733", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+          🔗 開啟新聞
+        </button>
+        <button onClick={handlePaste}
+          style={{ flex: 1, padding: "9px", borderRadius: 7, border: `1px solid ${accent}`, background: "#fff", color: accent, fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+          📋 從剪貼簿貼上
+        </button>
+      </div>
+      {/* 輸入框 */}
+      <div style={{ display: "flex", gap: 6 }}>
+        <input
+          type="url"
+          value={val}
+          onChange={e => { setVal(e.target.value); setPasted(false); }}
+          placeholder="https://..."
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck={false}
+          style={{ flex: 1, padding: "9px 10px", borderRadius: 7, border: `1.5px solid ${pasted?"#2e7d52":"#ccc"}`, fontSize: 15, fontFamily: "inherit", background: pasted?"#eef6f0":"#fff", WebkitAppearance: "none" }}
+        />
+        <button
+          disabled={!val || !val.startsWith("http")}
+          onClick={() => { onConfirm(val); setVal(""); setPasted(false); }}
+          style={{ padding: "9px 14px", borderRadius: 7, border: "none", background: val&&val.startsWith("http")?"#2e7d52":"#c8c8be", color: "#fff", fontSize: 14, fontWeight: 700, cursor: val?"pointer":"not-allowed", whiteSpace: "nowrap", fontFamily: "inherit" }}>
+          ✅ 確認
+        </button>
+      </div>
+      {pasted && val && (
+        <div style={{ fontSize: 12, color: "#2e7d52", marginTop: 6, fontWeight: 700 }}>
+          ✅ 已讀取：{val.substring(0, 50)}{val.length > 50 ? "…" : ""}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function App() {
   const [phase, setPhase] = useState("morning");
   const [current, setCurrent] = useState(0);
@@ -642,20 +716,13 @@ export default function App() {
                             </div>
                             {/* 網址區 */}
                             {isGoogleUrl ? (
-                              // Google 網址：顯示貼上新網址的輸入框
-                              <div style={{ background: "#fff3cd", border: "1px solid #f0c840", borderRadius: 6, padding: "7px 9px" }}>
-                                <div style={{ fontSize: 12, color: "#a05000", marginBottom: 5, fontWeight: 700 }}>⚠️ Google 轉址，請貼上真實網址：</div>
-                                <div style={{ display: "flex", gap: 6 }}>
-                                  <input placeholder="https://..." defaultValue=""
-                                    id={`url-input-${row.rowNum}`}
-                                    style={{ flex: 1, padding: "5px 8px", borderRadius: 5, border: "1px solid #ccc", fontSize: 13, fontFamily: "inherit" }} />
-                                  <button onClick={() => {
-                                    const val = document.getElementById(`url-input-${row.rowNum}`).value;
-                                    pasteUrlToRow(row.rowNum, val);
-                                  }} style={{ padding: "5px 10px", borderRadius: 5, border: "none", background: accent, color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", fontFamily: "inherit" }}>確認</button>
-                                </div>
-                                <div style={{ fontSize: 11, color: "#8a8a82", marginTop: 4 }}>開啟此新聞後，複製瀏覽器網址列的網址貼入上方</div>
-                              </div>
+                              // Google 網址：iOS 友善的貼上介面
+                              <GoogleUrlInput
+                                rowNum={row.rowNum}
+                                accent={accent}
+                                onConfirm={(url) => pasteUrlToRow(row.rowNum, url)}
+                                onOpen={() => window.open(row.url, "_blank")}
+                              />
                             ) : (
                               // 正常網址
                               <div style={{ display: "flex", alignItems: "flex-start", gap: 6 }}>
