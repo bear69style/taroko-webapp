@@ -37,78 +37,104 @@ const C = {
   orange: "#d97a28", red: "#c0440a", success: "#2e7d52",
 };
 
-// iOS 友善的 Google 轉址輸入元件
+// 對話框式網址輸入元件
 function GoogleUrlInput({ rowNum, accent, onConfirm, onOpen }) {
   const [val, setVal] = useState("");
-  const ref = React.useRef(null);
-
-  // 當 textarea 有內容變化時更新
-  const handleChange = (e) => {
-    const v = e.target.value.trim();
-    setVal(v);
-  };
+  const inputRef = React.useRef(null);
+  const isValid = val && val.startsWith("http");
 
   const handleConfirm = () => {
-    if (!val || !val.startsWith("http")) return;
+    if (!isValid) return;
     onConfirm(val);
     setVal("");
-    if (ref.current) ref.current.value = "";
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleConfirm();
+    }
   };
 
   return (
-    <div style={{ background: "#fff3cd", border: "1px solid #f0c840", borderRadius: 8, padding: "10px" }}>
-      <div style={{ fontSize: 13, color: "#a05000", marginBottom: 8, fontWeight: 700 }}>
-        ⚠️ Google 轉址，需要還原真實網址
+    <div style={{ background: "#fff8ed", border: "1px solid #f0c840", borderRadius: 10, overflow: "hidden" }}>
+      {/* 標題列 */}
+      <div style={{ background: "#fff3cd", padding: "8px 12px", borderBottom: "1px solid #f0e090", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <span style={{ fontSize: 13, fontWeight: 700, color: "#a05000" }}>⚠️ 請貼上真實網址</span>
+        <button onClick={onOpen}
+          style={{ padding: "5px 12px", borderRadius: 6, border: "1px solid #b8d4c2", background: "#eef6f0", color: "#1a4733", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+          🔗 開啟新聞
+        </button>
       </div>
-      <div style={{ fontSize: 13, color: "#7a6000", marginBottom: 10, lineHeight: 1.8, background: "#fffdf0", borderRadius: 6, padding: "8px 10px" }}>
-        1. 點「🔗 開啟新聞」→ Safari 開啟<br/>
-        2. 點 Safari 底部「分享」⬆️ → 選「複製」<br/>
-        3. 回到這裡，<b>長按下方文字框</b> → 點「貼上」<br/>
-        4. 貼入後點「✅ 確認」
-      </div>
-      <button onClick={onOpen}
-        style={{ width: "100%", padding: "11px", borderRadius: 8, border: "1px solid #b8d4c2", background: "#eef6f0", color: "#1a4733", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", marginBottom: 10 }}>
-        🔗 開啟新聞（Safari 新分頁）
-      </button>
-      {/* 大型 textarea 讓 iOS 長按貼上更容易 */}
-      <textarea
-        ref={ref}
-        defaultValue=""
-        onChange={handleChange}
-        placeholder="長按這裡 → 貼上"
-        autoComplete="off"
-        autoCorrect="off"
-        autoCapitalize="off"
-        spellCheck={false}
-        rows={3}
-        style={{
-          width: "100%",
-          padding: "12px",
-          borderRadius: 8,
-          border: `2px solid ${val && val.startsWith("http") ? "#2e7d52" : "#ccc"}`,
-          fontSize: 16,
-          fontFamily: "inherit",
-          background: val && val.startsWith("http") ? "#eef6f0" : "#fff",
-          WebkitAppearance: "none",
-          resize: "none",
-          lineHeight: 1.5,
-          color: "#2a2a28",
-          boxSizing: "border-box",
-          display: "block",
-          marginBottom: 8,
-        }}
-      />
-      {val && val.startsWith("http") && (
-        <div style={{ fontSize: 12, color: "#2e7d52", marginBottom: 8, wordBreak: "break-all", lineHeight: 1.4 }}>
-          ✅ {val.substring(0, 60)}{val.length > 60 ? "…" : ""}
+
+      {/* 已輸入的網址預覽（像對話泡泡）*/}
+      {val && (
+        <div style={{ padding: "10px 12px 0" }}>
+          <div style={{ background: isValid ? "#1a4733" : "#e0e0d8", borderRadius: "16px 16px 4px 16px", padding: "10px 14px", display: "inline-block", maxWidth: "100%", wordBreak: "break-all" }}>
+            <span style={{ fontSize: 14, color: isValid ? "#fff" : "#8a8a82", lineHeight: 1.5 }}>
+              {val.substring(0, 80)}{val.length > 80 ? "…" : ""}
+            </span>
+          </div>
+          {isValid && (
+            <div style={{ fontSize: 12, color: "#2e7d52", marginTop: 4, paddingLeft: 4 }}>✅ 網址格式正確</div>
+          )}
+          {!isValid && val.length > 0 && (
+            <div style={{ fontSize: 12, color: "#c0440a", marginTop: 4, paddingLeft: 4 }}>⚠️ 請輸入 http 開頭的網址</div>
+          )}
         </div>
       )}
-      <button
-        disabled={!val || !val.startsWith("http")}
-        onClick={handleConfirm}
-        style={{ width: "100%", padding: "12px", borderRadius: 8, border: "none", background: val && val.startsWith("http") ? "#2e7d52" : "#c8c8be", color: "#fff", fontSize: 16, fontWeight: 700, cursor: val ? "pointer" : "not-allowed", fontFamily: "inherit" }}>
-        ✅ 確認套用此網址
-      </button>
+
+      {/* 對話框輸入列 */}
+      <div style={{ display: "flex", alignItems: "flex-end", gap: 8, padding: "10px 12px", background: "#fff" }}>
+        <div style={{ flex: 1, background: "#f4f4f0", borderRadius: 20, border: "1.5px solid #e0e0d8", display: "flex", alignItems: "center", padding: "0 14px", minHeight: 44 }}>
+          <input
+            ref={inputRef}
+            type="url"
+            value={val}
+            onChange={e => setVal(e.target.value.trim())}
+            onKeyDown={handleKeyDown}
+            placeholder="貼上網址…"
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
+            style={{
+              flex: 1,
+              border: "none",
+              outline: "none",
+              background: "transparent",
+              fontSize: 16,
+              fontFamily: "inherit",
+              color: "#2a2a28",
+              padding: "10px 0",
+              WebkitAppearance: "none",
+            }}
+          />
+          {val.length > 0 && (
+            <button onClick={() => setVal("")}
+              style={{ background: "none", border: "none", color: "#b0b0a8", fontSize: 18, cursor: "pointer", padding: "0 0 0 8px", lineHeight: 1 }}>
+              ✕
+            </button>
+          )}
+        </div>
+        <button
+          onClick={handleConfirm}
+          disabled={!isValid}
+          style={{
+            width: 44, height: 44, borderRadius: "50%", border: "none",
+            background: isValid ? "#1a4733" : "#c8c8be",
+            color: "#fff", fontSize: 20, cursor: isValid ? "pointer" : "not-allowed",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            flexShrink: 0, transition: "all .15s",
+          }}>
+          ↑
+        </button>
+      </div>
+
+      {/* 提示 */}
+      <div style={{ padding: "0 12px 10px", fontSize: 12, color: "#9a9a92", lineHeight: 1.5 }}>
+        點輸入框後，長按輸入框內部 → 選「貼上」；或點「🔗 開啟新聞」後複製網址列網址再貼上。
+      </div>
     </div>
   );
 }
