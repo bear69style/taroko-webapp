@@ -325,6 +325,21 @@ export default function App() {
                         style={{ padding: "7px 12px", borderRadius: 6, border: `1px solid ${accent}`, background: "#fff", color: accent, fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
                         🔄 重新載入
                       </button>
+                      <button disabled={running} onClick={async () => {
+                        // 逐一開啟所有新聞網址（Safari 平板用）
+                        const r = await gasCall({ action: "openAllUrls" });
+                        if (r.ok && r.urls && r.urls.length > 0) {
+                          showToast("🌐 開啟 " + r.urls.length + " 個網址，請允許彈出視窗");
+                          r.urls.forEach((url, idx) => {
+                            setTimeout(() => window.open(url, "_blank"), idx * 400);
+                          });
+                        } else {
+                          showToast("❌ " + (r.error || "無法取得網址"), true);
+                        }
+                      }}
+                        style={{ padding: "7px 12px", borderRadius: 6, border: `1px solid ${accent}`, background: "#fff", color: accent, fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                        🌐 開啟所有網址
+                      </button>
                       <button disabled={running} onClick={() => runAction("批次還原Google轉址", "batchRestore", -1).then(() => loadNews())}
                         style={{ padding: "7px 12px", borderRadius: 6, border: `1px solid ${accent}`, background: "#fff", color: accent, fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
                         🔗 批次還原網址
