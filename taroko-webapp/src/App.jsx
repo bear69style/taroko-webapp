@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 
 const GAS_URL = process.env.REACT_APP_GAS_URL || "";
 
@@ -40,73 +40,75 @@ const C = {
 // iOS 友善的 Google 轉址輸入元件
 function GoogleUrlInput({ rowNum, accent, onConfirm, onOpen }) {
   const [val, setVal] = useState("");
-  const [pasted, setPasted] = useState(false);
+  const ref = React.useRef(null);
 
-  const handlePaste = async () => {
-    try {
-      // 嘗試用 Clipboard API 讀取剪貼簿（iOS 17+ 支援）
-      const text = await navigator.clipboard.readText();
-      if (text && text.startsWith("http")) {
-        setVal(text.trim());
-        setPasted(true);
-      } else {
-        alert("剪貼簿內容不是網址，請先複製新聞網址後再試");
-      }
-    } catch(e) {
-      // Clipboard API 失敗（需要使用者授權），改用手動貼上提示
-      alert("請長按下方輸入框，點「貼上」來貼入網址");
-    }
+  // 當 textarea 有內容變化時更新
+  const handleChange = (e) => {
+    const v = e.target.value.trim();
+    setVal(v);
+  };
+
+  const handleConfirm = () => {
+    if (!val || !val.startsWith("http")) return;
+    onConfirm(val);
+    setVal("");
+    if (ref.current) ref.current.value = "";
   };
 
   return (
     <div style={{ background: "#fff3cd", border: "1px solid #f0c840", borderRadius: 8, padding: "10px" }}>
-      <div style={{ fontSize: 12, color: "#a05000", marginBottom: 8, fontWeight: 700 }}>
+      <div style={{ fontSize: 13, color: "#a05000", marginBottom: 8, fontWeight: 700 }}>
         ⚠️ Google 轉址，需要還原真實網址
       </div>
-      {/* 步驟說明 */}
-      <div style={{ fontSize: 12, color: "#7a6000", marginBottom: 8, lineHeight: 1.8, background: "#fffdf0", borderRadius: 6, padding: "6px 8px" }}>
-        <b>操作步驟：</b><br/>
-        1. 點「🔗 開啟新聞」→ 等頁面載入<br/>
-        2. 長按 Safari 網址列 → 點「複製」<br/>
-        3. 點「📋 從剪貼簿貼上」或長按輸入框貼上<br/>
-        4. 確認網址後點「✅ 確認」
+      <div style={{ fontSize: 13, color: "#7a6000", marginBottom: 10, lineHeight: 1.8, background: "#fffdf0", borderRadius: 6, padding: "8px 10px" }}>
+        1. 點「🔗 開啟新聞」→ Safari 開啟<br/>
+        2. 點 Safari 底部「分享」⬆️ → 選「複製」<br/>
+        3. 回到這裡，<b>長按下方文字框</b> → 點「貼上」<br/>
+        4. 貼入後點「✅ 確認」
       </div>
-      {/* 開啟 + 剪貼簿按鈕 */}
-      <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
-        <button onClick={onOpen}
-          style={{ flex: 1, padding: "9px", borderRadius: 7, border: "1px solid #b8d4c2", background: "#eef6f0", color: "#1a4733", fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
-          🔗 開啟新聞
-        </button>
-        <button onClick={handlePaste}
-          style={{ flex: 1, padding: "9px", borderRadius: 7, border: `1px solid ${accent}`, background: "#fff", color: accent, fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
-          📋 從剪貼簿貼上
-        </button>
-      </div>
-      {/* 輸入框 */}
-      <div style={{ display: "flex", gap: 6 }}>
-        <input
-          type="url"
-          value={val}
-          onChange={e => { setVal(e.target.value); setPasted(false); }}
-          placeholder="https://..."
-          autoComplete="off"
-          autoCorrect="off"
-          autoCapitalize="off"
-          spellCheck={false}
-          style={{ flex: 1, padding: "9px 10px", borderRadius: 7, border: `1.5px solid ${pasted?"#2e7d52":"#ccc"}`, fontSize: 15, fontFamily: "inherit", background: pasted?"#eef6f0":"#fff", WebkitAppearance: "none" }}
-        />
-        <button
-          disabled={!val || !val.startsWith("http")}
-          onClick={() => { onConfirm(val); setVal(""); setPasted(false); }}
-          style={{ padding: "9px 14px", borderRadius: 7, border: "none", background: val&&val.startsWith("http")?"#2e7d52":"#c8c8be", color: "#fff", fontSize: 14, fontWeight: 700, cursor: val?"pointer":"not-allowed", whiteSpace: "nowrap", fontFamily: "inherit" }}>
-          ✅ 確認
-        </button>
-      </div>
-      {pasted && val && (
-        <div style={{ fontSize: 12, color: "#2e7d52", marginTop: 6, fontWeight: 700 }}>
-          ✅ 已讀取：{val.substring(0, 50)}{val.length > 50 ? "…" : ""}
+      <button onClick={onOpen}
+        style={{ width: "100%", padding: "11px", borderRadius: 8, border: "1px solid #b8d4c2", background: "#eef6f0", color: "#1a4733", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", marginBottom: 10 }}>
+        🔗 開啟新聞（Safari 新分頁）
+      </button>
+      {/* 大型 textarea 讓 iOS 長按貼上更容易 */}
+      <textarea
+        ref={ref}
+        defaultValue=""
+        onChange={handleChange}
+        placeholder="長按這裡 → 貼上"
+        autoComplete="off"
+        autoCorrect="off"
+        autoCapitalize="off"
+        spellCheck={false}
+        rows={3}
+        style={{
+          width: "100%",
+          padding: "12px",
+          borderRadius: 8,
+          border: `2px solid ${val && val.startsWith("http") ? "#2e7d52" : "#ccc"}`,
+          fontSize: 16,
+          fontFamily: "inherit",
+          background: val && val.startsWith("http") ? "#eef6f0" : "#fff",
+          WebkitAppearance: "none",
+          resize: "none",
+          lineHeight: 1.5,
+          color: "#2a2a28",
+          boxSizing: "border-box",
+          display: "block",
+          marginBottom: 8,
+        }}
+      />
+      {val && val.startsWith("http") && (
+        <div style={{ fontSize: 12, color: "#2e7d52", marginBottom: 8, wordBreak: "break-all", lineHeight: 1.4 }}>
+          ✅ {val.substring(0, 60)}{val.length > 60 ? "…" : ""}
         </div>
       )}
+      <button
+        disabled={!val || !val.startsWith("http")}
+        onClick={handleConfirm}
+        style={{ width: "100%", padding: "12px", borderRadius: 8, border: "none", background: val && val.startsWith("http") ? "#2e7d52" : "#c8c8be", color: "#fff", fontSize: 16, fontWeight: 700, cursor: val ? "pointer" : "not-allowed", fontFamily: "inherit" }}>
+        ✅ 確認套用此網址
+      </button>
     </div>
   );
 }
