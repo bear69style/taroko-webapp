@@ -37,6 +37,119 @@ const C = {
   orange: "#d97a28", red: "#c0440a", success: "#2e7d52",
 };
 
+// 批次貼上對話框元件
+function BatchPasteInput({ onPaste }) {
+  const [inputVal, setInputVal] = useState("");
+  const [lines, setLines] = useState([]);
+  const inputRef = React.useRef(null);
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      addLine();
+    }
+  };
+
+  const addLine = () => {
+    const v = inputVal.trim();
+    if (!v) return;
+    // 支援多行貼上
+    const newLines = v.split(/[\n\r]+/).map(l => l.trim()).filter(l => l.startsWith("http"));
+    if (newLines.length > 0) {
+      const updated = [...lines, ...newLines];
+      setLines(updated);
+      setInputVal("");
+      // 通知父元件
+      const fakeEvent = {
+        preventDefault: () => {},
+        clipboardData: { getData: () => updated.join("\n") },
+      };
+      // 直接傳送所有網址
+      onPaste({ preventDefault: () => {}, clipboardData: { getData: () => updated.join("\n") }, _direct: updated });
+    }
+  };
+
+  const handlePasteEvent = (e) => {
+    e.preventDefault();
+    const text = (e.clipboardData || window.clipboardData).getData("text");
+    const newLines = text.split(/[\n\r]+/).map(l => l.trim()).filter(l => l.startsWith("http"));
+    if (newLines.length > 0) {
+      const updated = [...lines, ...newLines];
+      setLines(updated);
+      setInputVal("");
+      onPaste({ preventDefault: () => {}, clipboardData: { getData: () => updated.join("\n") } });
+    }
+  };
+
+  const removeLine = (idx) => {
+    const updated = lines.filter((_, i) => i !== idx);
+    setLines(updated);
+    if (updated.length > 0) {
+      onPaste({ preventDefault: () => {}, clipboardData: { getData: () => updated.join("\n") } });
+    }
+  };
+
+  return (
+    <div style={{ background: "#fff", border: "1.5px solid #e0e0d8", borderRadius: 12, overflow: "hidden" }}>
+      {/* 對話泡泡顯示已貼入的網址 */}
+      {lines.length > 0 && (
+        <div style={{ padding: "10px 12px", background: "#fafaf8", borderBottom: "1px solid #e8e8e0", maxHeight: 200, overflowY: "auto" }}>
+          {lines.map((url, idx) => (
+            <div key={idx} style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 6, justifyContent: "flex-end" }}>
+              <div style={{ flex: 1, background: "#1a4733", borderRadius: "14px 14px 4px 14px", padding: "8px 12px", wordBreak: "break-all" }}>
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", marginBottom: 2 }}>網址 {idx + 1}</div>
+                <div style={{ fontSize: 13, color: "#fff", lineHeight: 1.4 }}>{url.substring(0, 55)}{url.length > 55 ? "…" : ""}</div>
+              </div>
+              <button onClick={() => removeLine(idx)}
+                style={{ flexShrink: 0, width: 28, height: 28, borderRadius: "50%", border: "none", background: "#f0d0d0", color: "#c0440a", fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", marginTop: 4 }}>
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* 輸入列（像對話框） */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", background: "#fff", borderTop: lines.length > 0 ? "1px solid #e8e8e0" : "none" }}>
+        <div style={{ flex: 1, background: "#f4f4f0", borderRadius: 22, border: "1.5px solid #e0e0d8", display: "flex", alignItems: "center", padding: "0 14px", minHeight: 46 }}>
+          <input
+            ref={inputRef}
+            type="url"
+            value={inputVal}
+            onChange={e => setInputVal(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onPaste={handlePasteEvent}
+            placeholder={lines.length === 0 ? "貼上網址，或一次貼多個…" : "繼續貼入更多網址…"}
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
+            style={{
+              flex: 1, border: "none", outline: "none", background: "transparent",
+              fontSize: 15, fontFamily: "inherit", color: "#2a2a28",
+              padding: "10px 0", WebkitAppearance: "none",
+            }}
+          />
+        </div>
+        <button
+          onClick={addLine}
+          disabled={!inputVal.trim().startsWith("http")}
+          style={{
+            width: 46, height: 46, borderRadius: "50%", border: "none", flexShrink: 0,
+            background: inputVal.trim().startsWith("http") ? "#1a4733" : "#c8c8be",
+            color: "#fff", fontSize: 22, cursor: inputVal.trim().startsWith("http") ? "pointer" : "not-allowed",
+            display: "flex", alignItems: "center", justifyContent: "center", transition: "all .15s",
+          }}>
+          ↑
+        </button>
+      </div>
+      <div style={{ padding: "0 14px 10px", fontSize: 12, color: "#9a9a92" }}>
+        {lines.length === 0 ? "直接在輸入框貼上（Ctrl+V / ⌘+V），或一行一行輸入後按 ↑" : `已加入 ${lines.length} 個網址，可繼續新增或點上方 ✕ 刪除`}
+      </div>
+    </div>
+  );
+}
+
 // 對話框式網址輸入元件
 function GoogleUrlInput({ rowNum, accent, onConfirm, onOpen }) {
   const [val, setVal] = useState("");
@@ -586,14 +699,7 @@ export default function App() {
                           步驟：<b>1.</b> 點「🌐 開啟全部」讓 Safari 開啟所有分頁 → <b>2.</b> 長按 Safari 側邊欄分頁數量 → <b>3.</b> 點「複製所有連結」→ <b>4.</b> 在下方貼上
                         </div>
                         {batchUrls.length === 0 ? (
-                          <div
-                            onClick={() => document.getElementById("batchPasteInput").focus()}
-                            style={{ border: "1.5px dashed #c8a000", borderRadius: 8, padding: "16px", textAlign: "center", cursor: "pointer", background: "#fffdf0", position: "relative" }}>
-                            <div style={{ fontSize: 14, color: "#a05000", fontWeight: 700 }}>👆 點此貼上複製的網址</div>
-                            <div style={{ fontSize: 12, color: "#8a7a00", marginTop: 4 }}>可同時貼多個，每行一個</div>
-                            <textarea id="batchPasteInput" onPaste={handleBatchPaste}
-                              style={{ position: "absolute", opacity: 0, width: 1, height: 1, top: 0, left: 0 }} />
-                          </div>
+                          <BatchPasteInput onPaste={handleBatchPaste} />
                         ) : (
                           <div>
                             <div style={{ fontSize: 13, color: "#5a5a54", marginBottom: 8 }}>
