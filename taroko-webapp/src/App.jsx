@@ -38,113 +38,124 @@ const C = {
 };
 
 // 批次貼上對話框元件
-function BatchPasteInput({ onPaste }) {
+function BatchPasteInput({ newsRows, onApply, onCancel }) {
+  const [urls, setUrls] = useState([]);
   const [inputVal, setInputVal] = useState("");
-  const [lines, setLines] = useState([]);
-  const inputRef = React.useRef(null);
+  const [dragIdx, setDragIdx] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const accent = "#1a4733";
 
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      addLine();
-    }
+  const addUrls = (text) => {
+    const newUrls = text.split(/[\n\r]+/).map(u => u.trim()).filter(u => u.startsWith("http"));
+    if (!newUrls.length) return;
+    setUrls(prev => [...prev, ...newUrls]);
+    setInputVal("");
   };
 
-  const addLine = () => {
-    const v = inputVal.trim();
-    if (!v) return;
-    // 支援多行貼上
-    const newLines = v.split(/[\n\r]+/).map(l => l.trim()).filter(l => l.startsWith("http"));
-    if (newLines.length > 0) {
-      const updated = [...lines, ...newLines];
-      setLines(updated);
-      setInputVal("");
-      // 通知父元件
-      const fakeEvent = {
-        preventDefault: () => {},
-        clipboardData: { getData: () => updated.join("\n") },
-      };
-      // 直接傳送所有網址
-      onPaste({ preventDefault: () => {}, clipboardData: { getData: () => updated.join("\n") }, _direct: updated });
-    }
-  };
+  const handlePaste = (e) => { e.preventDefault(); addUrls((e.clipboardData || window.clipboardData).getData("text")); };
+  const handleKeyDown = (e) => { if (e.key === "Enter") { e.preventDefault(); addUrls(inputVal); } };
+  const removeUrl = (idx) => setUrls(prev => prev.filter((_, i) => i !== idx));
 
-  const handlePasteEvent = (e) => {
+  // 交換排序
+  const handleDragStart = (idx) => setDragIdx(idx);
+  const handleDrop = (e, idx) => {
     e.preventDefault();
-    const text = (e.clipboardData || window.clipboardData).getData("text");
-    const newLines = text.split(/[\n\r]+/).map(l => l.trim()).filter(l => l.startsWith("http"));
-    if (newLines.length > 0) {
-      const updated = [...lines, ...newLines];
-      setLines(updated);
-      setInputVal("");
-      onPaste({ preventDefault: () => {}, clipboardData: { getData: () => updated.join("\n") } });
-    }
+    if (dragIdx === null || dragIdx === idx) return;
+    setUrls(prev => {
+      const arr = [...prev];
+      [arr[dragIdx], arr[idx]] = [arr[idx], arr[dragIdx]];
+      return arr;
+    });
+    setDragIdx(null);
   };
-
-  const removeLine = (idx) => {
-    const updated = lines.filter((_, i) => i !== idx);
-    setLines(updated);
-    if (updated.length > 0) {
-      onPaste({ preventDefault: () => {}, clipboardData: { getData: () => updated.join("\n") } });
-    }
-  };
+  const handleDragEnd = () => setDragIdx(null);
 
   return (
-    <div style={{ background: "#fff", border: "1.5px solid #e0e0d8", borderRadius: 12, overflow: "hidden" }}>
-      {/* 對話泡泡顯示已貼入的網址 */}
-      {lines.length > 0 && (
-        <div style={{ padding: "10px 12px", background: "#fafaf8", borderBottom: "1px solid #e8e8e0", maxHeight: 200, overflowY: "auto" }}>
-          {lines.map((url, idx) => (
-            <div key={idx} style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 6, justifyContent: "flex-end" }}>
-              <div style={{ flex: 1, background: "#1a4733", borderRadius: "14px 14px 4px 14px", padding: "8px 12px", wordBreak: "break-all" }}>
-                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", marginBottom: 2 }}>網址 {idx + 1}</div>
-                <div style={{ fontSize: 13, color: "#fff", lineHeight: 1.4 }}>{url.substring(0, 55)}{url.length > 55 ? "…" : ""}</div>
+    <div style={{ background: "#fffbeb", border: "1.5px solid #f6d860", borderRadius: 10, padding: "12px 14px" }}>
+      <div style={{ fontWeight: 700, fontSize: "1em", color: "#a05000", marginBottom: 6 }}>📋 批次貼上還原 Google 轉址</div>
+      <div style={{ fontSize: "0.82em", color: "#7a6000", lineHeight: 1.6, marginBottom: 10 }}>
+        步驟：1. 點「🌐 開啟全部」→ 2. Chrome 複製所有分頁網址 → 3. 貼到下方輸入框 → 4. 確認順序後套用
+      </div>
+
+      {/* 已貼入的網址列表（可拖拉交換） */}
+      {urls.length > 0 && (
+        <div style={{ marginBottom: 10 }}>
+          <div style={{ fontSize: "0.76em", color: "#5a5a54", marginBottom: 6 }}>
+            共 {urls.length} 個網址，長按拖動可交換順序，✕ 刪除，👁 預覽：
+          </div>
+          {urls.map((url, idx) => {
+            const matchRow = newsRows[idx];
+            return (
+              <div key={idx}
+                draggable
+                onDragStart={() => handleDragStart(idx)}
+                onDragOver={e => e.preventDefault()}
+                onDrop={e => handleDrop(e, idx)}
+                onDragEnd={handleDragEnd}
+                style={{ marginBottom: 6, background: dragIdx===idx?"#eef6f0":"#fff", border: `1.5px solid ${dragIdx===idx?accent:"#e0e0d0"}`, borderRadius: 8, overflow: "hidden", opacity: dragIdx===idx?0.6:1, cursor: "grab" }}>
+                {/* 對應新聞標題 */}
+                {matchRow ? (
+                  <div style={{ padding: "5px 10px", background: "#f8f8f4", borderBottom: "1px solid #e8e8e0", fontSize: "0.76em", color: "#2a2a28" }}>
+                    <span style={{ color: "#8a8a82" }}>對應：</span>
+                    <b>{matchRow.title.substring(0,32)}{matchRow.title.length>32?"…":""}</b>
+                  </div>
+                ) : (
+                  <div style={{ padding: "5px 10px", background: "#fff0f0", borderBottom: "1px solid #f0c0c0", fontSize: "0.76em", color: "#c0440a" }}>
+                    ⚠️ 超出精選表數量，不會套用
+                  </div>
+                )}
+                {/* 網址 + 操作 */}
+                <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px" }}>
+                  <div style={{ width: 22, height: 22, borderRadius: "50%", background: matchRow?"#d4ece0":"#f0d0d0", color: matchRow?"#1a4733":"#c0440a", fontSize: "0.76em", fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{idx+1}</div>
+                  <div style={{ flex: 1, fontSize: "0.76em", color: "#4a86c8", wordBreak: "break-all", lineHeight: 1.4 }}>{url.substring(0,50)}{url.length>50?"…":""}</div>
+                  <button onClick={() => setPreviewUrl(previewUrl===url?null:url)}
+                    style={{ flexShrink: 0, padding: "3px 8px", borderRadius: 4, border: "1px solid #b8c4e0", background: previewUrl===url?"#eef0f8":"#fff", color: "#4a6fa5", fontSize: "0.76em", cursor: "pointer", fontFamily: "inherit" }}>
+                    {previewUrl===url?"✕":"👁"}
+                  </button>
+                  <a href={url} target="_blank" rel="noreferrer"
+                    style={{ flexShrink: 0, padding: "3px 8px", borderRadius: 4, border: "1px solid #b8d4c2", background: "#eef6f0", color: "#1a4733", fontSize: "0.76em", textDecoration: "none" }}>🔗</a>
+                  <button onClick={() => removeUrl(idx)}
+                    style={{ flexShrink: 0, padding: "3px 8px", borderRadius: 4, border: "1px solid #f0a0a0", background: "#fff0f0", color: "#c0440a", fontSize: "0.76em", cursor: "pointer", fontFamily: "inherit" }}>✕</button>
+                </div>
+                {/* 預覽卡片 */}
+                {previewUrl === url && (
+                  <div style={{ borderTop: "1px solid #e8e8e0", padding: "8px 10px", background: "#fafaf8", fontSize: "0.76em", color: "#8a8a82" }}>
+                    <iframe src={url} title={"prev"+idx} style={{ width:"100%", height:200, border:"none", borderRadius:6 }} sandbox="allow-scripts allow-same-origin" />
+                    <div style={{ marginTop: 4 }}>⚠️ 若顯示空白，請點 🔗 在新分頁確認</div>
+                  </div>
+                )}
               </div>
-              <button onClick={() => removeLine(idx)}
-                style={{ flexShrink: 0, width: 28, height: 28, borderRadius: "50%", border: "none", background: "#f0d0d0", color: "#c0440a", fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", marginTop: 4 }}>
-                ✕
-              </button>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
-      {/* 輸入列（像對話框） */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", background: "#fff", borderTop: lines.length > 0 ? "1px solid #e8e8e0" : "none" }}>
-        <div style={{ flex: 1, background: "#f4f4f0", borderRadius: 22, border: "1.5px solid #e0e0d8", display: "flex", alignItems: "center", padding: "0 14px", minHeight: 46 }}>
-          <input
-            ref={inputRef}
-            type="url"
-            value={inputVal}
-            onChange={e => setInputVal(e.target.value)}
-            onKeyDown={handleKeyDown}
-            onPaste={handlePasteEvent}
-            placeholder={lines.length === 0 ? "貼上網址，或一次貼多個…" : "繼續貼入更多網址…"}
-            autoComplete="off"
-            autoCorrect="off"
-            autoCapitalize="off"
-            spellCheck={false}
-            style={{
-              flex: 1, border: "none", outline: "none", background: "transparent",
-              fontSize: 15, fontFamily: "inherit", color: "#2a2a28",
-              padding: "10px 0", WebkitAppearance: "none",
-            }}
-          />
-        </div>
-        <button
-          onClick={addLine}
-          disabled={!inputVal.trim().startsWith("http")}
-          style={{
-            width: 46, height: 46, borderRadius: "50%", border: "none", flexShrink: 0,
-            background: inputVal.trim().startsWith("http") ? "#1a4733" : "#c8c8be",
-            color: "#fff", fontSize: 22, cursor: inputVal.trim().startsWith("http") ? "pointer" : "not-allowed",
-            display: "flex", alignItems: "center", justifyContent: "center", transition: "all .15s",
-          }}>
-          ↑
-        </button>
+      {/* 對話框輸入列 */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#fff", borderRadius: 24, border: "1.5px solid #e0e0d8", padding: "0 12px", minHeight: 48, marginBottom: 8 }}>
+        <input
+          type="url"
+          value={inputVal}
+          onChange={e => setInputVal(e.target.value)}
+          onKeyDown={handleKeyDown}
+          onPaste={handlePaste}
+          placeholder={urls.length === 0 ? "貼上網址（Ctrl+V / ⌘+V）…" : "繼續貼入更多網址…"}
+          autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false}
+          style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontSize: "0.94em", fontFamily: "inherit", color: "#2a2a28", padding: "10px 0" }}
+        />
+        <button onClick={() => addUrls(inputVal)} disabled={!inputVal.trim().startsWith("http")}
+          style={{ width: 40, height: 40, borderRadius: "50%", border: "none", flexShrink: 0, background: inputVal.trim().startsWith("http")?"#1a4733":"#c8c8be", color: "#fff", fontSize: 20, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>↑</button>
       </div>
-      <div style={{ padding: "0 14px 10px", fontSize: 12, color: "#9a9a92" }}>
-        {lines.length === 0 ? "直接在輸入框貼上（Ctrl+V / ⌘+V），或一行一行輸入後按 ↑" : `已加入 ${lines.length} 個網址，可繼續新增或點上方 ✕ 刪除`}
+
+      {/* 確認 / 取消 按鈕 */}
+      <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+        <button onClick={onCancel}
+          style={{ flex: 1, padding: "10px", borderRadius: 8, border: "1.5px solid #ccc", background: "#fff", color: "#555", fontSize: "0.94em", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+          取消
+        </button>
+        <button onClick={() => urls.length > 0 && onApply(urls)} disabled={urls.length === 0}
+          style={{ flex: 2, padding: "10px", borderRadius: 8, border: "none", background: urls.length>0?"#1a4733":"#c8c8be", color: "#fff", fontSize: "0.94em", fontWeight: 700, cursor: urls.length>0?"pointer":"not-allowed", fontFamily: "inherit" }}>
+          ✅ 確認套用到精選表（{urls.length} 個）
+        </button>
       </div>
     </div>
   );
@@ -775,113 +786,25 @@ export default function App() {
                       </button>
                     </div>
 
-                    {/* 批次貼上還原浮層 */}
+                    {/* 批次貼上還原 */}
                     {batchPasteMode && (
-                      <div style={{ background: "#fffbeb", border: "1.5px solid #f6d860", borderRadius: 10, padding: "12px 14px", marginBottom: 12 }}>
-                        <div style={{ fontWeight: 700, fontSize: 15, color: "#a05000", marginBottom: 6 }}>📋 批次貼上還原 Google 轉址</div>
-                        <div style={{ fontSize: 13, color: "#7a6000", lineHeight: 1.6, marginBottom: 10 }}>
-                          步驟：<b>1.</b> 點「🌐 開啟全部」讓 Safari 開啟所有分頁 → <b>2.</b> 長按 Safari 側邊欄分頁數量 → <b>3.</b> 點「複製所有連結」→ <b>4.</b> 在下方貼上
-                        </div>
-                        {batchUrls.length === 0 ? (
-                          <BatchPasteInput onPaste={handleBatchPaste} />
-                        ) : (
-                          <div>
-                            <div style={{ fontSize: 13, color: "#5a5a54", marginBottom: 8 }}>
-                              共 {batchUrls.length} 個網址，將依序對應精選表第 1～{batchUrls.length} 則新聞的 D 欄。<br/>
-                              👆 可點「👁 預覽」確認網頁內容，「🔗 開啟」在新分頁開啟。<br/>
-                              ✋ 長按拖動可調整順序，✕ 刪除不需要的：
-                            </div>
-                            {/* 對照表：左邊新聞標題，右邊即將套用的網址 */}
-                            {(() => {
-                              return batchUrls.map((url, idx) => {
-                                const matchRow = newsRows[idx];
-                                return (
-                                  <div key={idx}
-                                    draggable
-                                    onDragStart={() => handleDragStart(idx)}
-                                    onDragOver={e => e.preventDefault()}
-                                    onDrop={e => handleDrop(e, idx)}
-                                    onDragEnd={handleDragEnd}
-                                    style={{ marginBottom: 8, background: dragIdx===idx?"#eef6f0":"#fff", border: `1.5px solid ${dragIdx===idx?accent:"#e0e0d0"}`, borderRadius: 8, overflow: "hidden", cursor: "grab", transition: "all .15s", opacity: dragIdx===idx?0.6:1 }}>
-                                    {/* 對應新聞標題 */}
-                                    {matchRow ? (
-                                      <div style={{ padding: "6px 10px", background: "#f8f8f4", borderBottom: "1px solid #e8e8e0", fontSize: 13, color: "#2a2a28", lineHeight: 1.4 }}>
-                                        <span style={{ fontSize: 11, color: "#8a8a82", marginRight: 4 }}>對應：</span>
-                                        <b>{matchRow.title.substring(0,32)}{matchRow.title.length>32?"…":""}</b>
-                                      </div>
-                                    ) : (
-                                      <div style={{ padding: "6px 10px", background: "#fff0f0", borderBottom: "1px solid #f0c0c0", fontSize: 12, color: "#c0440a" }}>
-                                        ⚠️ 超出精選表數量，不會套用
-                                      </div>
-                                    )}
-                                    {/* 網址列 */}
-                                    <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px" }}>
-                                      <div style={{ width: 24, height: 24, borderRadius: "50%", background: matchRow?"#d4ece0":"#f0d0d0", color: matchRow?"#1a4733":"#c0440a", fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{idx+1}</div>
-                                      <div style={{ flex: 1, fontSize: "0.7em", color: "#4a86c8", wordBreak: "break-all", lineHeight: 1.4 }}>{url.substring(0,50)}{url.length>50?"…":""}</div>
-                                      <button onClick={() => fetchPreview(url)}
-                                        style={{ flexShrink: 0, padding: "3px 8px", borderRadius: 4, border: "1px solid #b8c4e0", background: previewUrl===url?"#eef0f8":"#fff", color: "#4a6fa5", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
-                                        {previewUrl===url?"✕ 關閉":"👁 預覽"}
-                                      </button>
-                                      <a href={url} target="_blank" rel="noreferrer"
-                                        style={{ flexShrink: 0, padding: "3px 8px", borderRadius: 4, border: "1px solid #b8d4c2", background: "#eef6f0", color: "#1a4733", fontSize: 12, textDecoration: "none" }}>
-                                        🔗 開啟
-                                      </a>
-                                      <button onClick={() => removeBatchUrl(idx)}
-                                        style={{ flexShrink: 0, padding: "3px 8px", borderRadius: 4, border: "1px solid #f0a0a0", background: "#fff0f0", color: "#c0440a", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>✕</button>
-                                    </div>
-                                    {/* 小視窗預覽卡片（像 Google Sheets 那種）*/}
-                                    {previewUrl === url && (
-                                      <div style={{ borderTop: "1px solid #e0e0d8", padding: "10px 12px", background: "#fafaf8" }}>
-                                        {!previewData[url] ? (
-                                          <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#8a8a82", fontSize: 13 }}>
-                                            <div style={{ width: 16, height: 16, border: "2px solid #d8d8d0", borderTopColor: accent, borderRadius: "50%", animation: "spin .7s linear infinite", flexShrink: 0 }} />
-                                            載入預覽中…
-                                          </div>
-                                        ) : (
-                                          <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-                                            {/* 縮圖 */}
-                                            {previewData[url].image && (
-                                              <img src={previewData[url].image} alt="preview"
-                                                style={{ width: 80, height: 60, objectFit: "cover", borderRadius: 6, flexShrink: 0, border: "1px solid #e0e0d8" }}
-                                                onError={e => { e.target.style.display = "none"; }} />
-                                            )}
-                                            {!previewData[url].image && (
-                                              <div style={{ width: 80, height: 60, borderRadius: 6, background: "#e8e8e0", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20 }}>📰</div>
-                                            )}
-                                            {/* 標題 + 網域 */}
-                                            <div style={{ flex: 1, minWidth: 0 }}>
-                                              <div style={{ fontSize: 14, fontWeight: 700, color: "#2a2a28", lineHeight: 1.4, marginBottom: 4 }}>
-                                                {previewData[url].title || "（無標題）"}
-                                              </div>
-                                              <div style={{ fontSize: 12, color: "#8a8a82" }}>
-                                                🌐 {previewData[url].domain || new URL(url).hostname}
-                                              </div>
-                                              <a href={url} target="_blank" rel="noreferrer"
-                                                style={{ display: "inline-block", marginTop: 6, fontSize: "0.7em", color: "#4a86c8", textDecoration: "none", padding: "3px 10px", borderRadius: 4, border: "1px solid #b8c4e0", background: "#fff" }}>
-                                                在新分頁開啟 →
-                                              </a>
-                                            </div>
-                                          </div>
-                                        )}
-                                      </div>
-                                    )}
-                                  </div>
-                                );
-                              });
-                            })()}
-                            <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-                              <button onClick={() => { setBatchUrls([]); }}
-                                style={{ flex: 1, padding: "9px", borderRadius: 7, border: "1.5px solid #ccc", background: "#fff", color: "#555", fontSize: 14, cursor: "pointer", fontFamily: "inherit", fontWeight: 700 }}>
-                                重新貼上
-                              </button>
-                              <button disabled={running} onClick={applyBatchUrls}
-                                style={{ flex: 2, padding: "9px", borderRadius: 7, border: "none", background: running?"#8a8a82":accent, color: "#fff", fontSize: 14, fontWeight: 700, cursor: running?"wait":"pointer", fontFamily: "inherit" }}>
-                                ✅ 確認套用到精選表
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
+                        <BatchPasteInput
+                          newsRows={newsRows}
+                          onApply={async (urls) => {
+                            setRunning(true); setRunLabel("批次套用網址");
+                            try {
+                              const count = Math.min(newsRows.length, urls.length);
+                              for (let i = 0; i < count; i++) {
+                                await gasCall({ action: "updateRow", row: newsRows[i].rowNum, field: "url", value: urls[i] });
+                              }
+                              showToast("✅ 已套用 " + count + " 個網址到精選表");
+                              setBatchPasteMode(false);
+                              loadNews();
+                            } catch(e) { showToast("❌ 連線失敗", true); }
+                            finally { setRunning(false); }
+                          }}
+                          onCancel={() => setBatchPasteMode(false)}
+                        />
                     )}
 
                     {/* 勾選批次操作列 */}
