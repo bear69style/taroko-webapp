@@ -296,6 +296,7 @@ export default function App() {
   const [previewUrl, setPreviewUrl] = useState(null);
   const [previewData, setPreviewData] = useState({}); // { url: {title, image, domain} }
   const [dragIdx, setDragIdx] = useState(null);
+  const [sequentialOpen, setSequentialOpen] = useState(null); // { items: [], current: 0 }
 
   const night = phase === "night";
   const accent = night ? C.night : C.green;
