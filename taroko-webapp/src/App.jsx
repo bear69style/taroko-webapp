@@ -396,24 +396,47 @@ export default function App() {
     finally { setRunning(false); }
   };
 
-  // 開啟勾選的網址（逐則模式）
+  // 偵測是否為觸控裝置（iPad/手機），桌機用一次全開更有效率
+  const isTouchDevice = () => {
+    return /iPad|iPhone|iPod|Android/.test(navigator.userAgent) ||
+      (navigator.maxTouchPoints && navigator.maxTouchPoints > 1 && /Mac/.test(navigator.userAgent)); // iPadOS 偽裝成 Mac 的偵測
+  };
+
+  // 開啟勾選的網址（桌機一次全開，平板逐則開啟）
   const openChecked = () => {
     const items = newsRows.filter(r => checkedRows.has(r.rowNum)).map(r => ({ url: r.url, title: r.title })).filter(r => r.url);
     if (!items.length) { showToast("⚠️ 沒有選取任何新聞", true); return; }
-    setSequentialOpen({ items, current: 0 });
+    if (isTouchDevice()) {
+      setSequentialOpen({ items, current: 0 });
+    } else {
+      showToast("🌐 開啟 " + items.length + " 個網址");
+      items.forEach((item, idx) => setTimeout(() => window.open(item.url, "_blank"), idx * 300));
+    }
   };
 
-  // 開啟全部網址（Safari 友善：逐則點擊開啟，避免被攔截）
+  // 開啟全部網址（桌機一次全開，平板逐則開啟避免被 Safari 攔截）
   const openAllUrls = () => {
-    const urls = newsRows.map(r => ({ url: r.url, title: r.title })).filter(r => r.url);
-    if (!urls.length) { showToast("⚠️ 精選表是空的", true); return; }
-    setSequentialOpen({ items: urls, current: 0 });
+    const items = newsRows.map(r => ({ url: r.url, title: r.title })).filter(r => r.url);
+    if (!items.length) { showToast("⚠️ 精選表是空的", true); return; }
+    if (isTouchDevice()) {
+      setSequentialOpen({ items, current: 0 });
+    } else {
+      showToast("🌐 開啟 " + items.length + " 個網址");
+      items.forEach((item, idx) => setTimeout(() => window.open(item.url, "_blank"), idx * 300));
+    }
   };
 
   const openSequentialCurrent = () => {
     if (!sequentialOpen) return;
     const item = sequentialOpen.items[sequentialOpen.current];
     if (item) window.open(item.url, "_blank");
+    // 開啟後自動跳下一則
+    setSequentialOpen(prev => {
+      if (!prev) return null;
+      const next = prev.current + 1;
+      if (next >= prev.items.length) return prev; // 已是最後一則，停留讓同仁按完成
+      return { ...prev, current: next };
+    });
   };
 
   const nextSequential = () => {
@@ -671,12 +694,12 @@ export default function App() {
             </div>
             <div style={{ display: "flex", gap: 8 }}>
               <button onClick={openSequentialCurrent}
-                style={{ flex: 1, padding: 13, borderRadius: 10, border: "none", background: accent, color: "#fff", fontSize: 16, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
-                🔗 開啟此則
+                style={{ flex: 2, padding: 13, borderRadius: 10, border: "none", background: accent, color: "#fff", fontSize: 16, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                🔗 開啟此則（自動跳下一則）
               </button>
               <button onClick={nextSequential}
-                style={{ flex: 1, padding: 13, borderRadius: 10, border: `1.5px solid ${accent}`, background: "#fff", color: accent, fontSize: 16, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
-                下一則 →
+                style={{ flex: 1, padding: 13, borderRadius: 10, border: `1.5px solid ${accent}`, background: "#fff", color: accent, fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                跳過
               </button>
             </div>
             {sequentialOpen.current === sequentialOpen.items.length - 1 && (
