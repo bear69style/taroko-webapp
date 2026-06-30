@@ -395,20 +395,33 @@ export default function App() {
     finally { setRunning(false); }
   };
 
-  // 開啟勾選的網址
+  // 開啟勾選的網址（逐則模式）
   const openChecked = () => {
-    const urls = newsRows.filter(r => checkedRows.has(r.rowNum)).map(r => r.url).filter(u => u);
-    if (!urls.length) { showToast("⚠️ 沒有選取任何新聞", true); return; }
-    showToast("🌐 開啟 " + urls.length + " 個網址");
-    urls.forEach((url, idx) => setTimeout(() => window.open(url, "_blank"), idx * 400));
+    const items = newsRows.filter(r => checkedRows.has(r.rowNum)).map(r => ({ url: r.url, title: r.title })).filter(r => r.url);
+    if (!items.length) { showToast("⚠️ 沒有選取任何新聞", true); return; }
+    setSequentialOpen({ items, current: 0 });
   };
 
-  // 開啟全部網址
+  // 開啟全部網址（Safari 友善：逐則點擊開啟，避免被攔截）
   const openAllUrls = () => {
-    const urls = newsRows.map(r => r.url).filter(u => u);
+    const urls = newsRows.map(r => ({ url: r.url, title: r.title })).filter(r => r.url);
     if (!urls.length) { showToast("⚠️ 精選表是空的", true); return; }
-    showToast("🌐 開啟 " + urls.length + " 個網址，請允許彈出視窗");
-    urls.forEach((url, idx) => setTimeout(() => window.open(url, "_blank"), idx * 400));
+    setSequentialOpen({ items: urls, current: 0 });
+  };
+
+  const openSequentialCurrent = () => {
+    if (!sequentialOpen) return;
+    const item = sequentialOpen.items[sequentialOpen.current];
+    if (item) window.open(item.url, "_blank");
+  };
+
+  const nextSequential = () => {
+    setSequentialOpen(prev => {
+      if (!prev) return null;
+      const next = prev.current + 1;
+      if (next >= prev.items.length) return null; // 完成
+      return { ...prev, current: next };
+    });
   };
 
   // 批次貼上網址處理
@@ -634,6 +647,43 @@ export default function App() {
               <button onClick={() => setEditCell(null)} style={{ flex: 1, padding: 10, borderRadius: 8, border: "1.5px solid #ccc", background: "#fff", fontSize: 15, cursor: "pointer", fontFamily: "inherit" }}>取消</button>
               <button onClick={saveEdit} style={{ flex: 1, padding: 10, borderRadius: 8, border: "none", background: accent, color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>儲存</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 逐則開啟網址浮層（Safari 友善） */}
+      {sequentialOpen && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.55)", zIndex: 997, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
+          <div style={{ background: "#fff", borderRadius: "16px 16px 0 0", padding: "20px 18px", width: "100%", maxWidth: 480, boxShadow: "0 -4px 20px rgba(0,0,0,.15)" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: accent }}>🌐 逐則開啟新聞網址</div>
+              <button onClick={() => setSequentialOpen(null)}
+                style={{ border: "none", background: "none", fontSize: 22, color: "#b0b0a8", cursor: "pointer", padding: 4 }}>✕</button>
+            </div>
+            <div style={{ fontSize: 13, color: "#8a8a82", marginBottom: 14 }}>
+              第 {sequentialOpen.current + 1} / {sequentialOpen.items.length} 則 — Safari 一次只能開一個分頁，請逐則點擊
+            </div>
+            <div style={{ background: "#f4f4f0", borderRadius: 10, padding: "12px 14px", marginBottom: 14 }}>
+              <div style={{ fontSize: 15, fontWeight: 500, color: "#2a2a28", lineHeight: 1.5 }}>
+                {sequentialOpen.items[sequentialOpen.current]?.title || ""}
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={openSequentialCurrent}
+                style={{ flex: 1, padding: 13, borderRadius: 10, border: "none", background: accent, color: "#fff", fontSize: 16, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                🔗 開啟此則
+              </button>
+              <button onClick={nextSequential}
+                style={{ flex: 1, padding: 13, borderRadius: 10, border: `1.5px solid ${accent}`, background: "#fff", color: accent, fontSize: 16, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                下一則 →
+              </button>
+            </div>
+            {sequentialOpen.current === sequentialOpen.items.length - 1 && (
+              <button onClick={() => setSequentialOpen(null)}
+                style={{ width: "100%", padding: 11, marginTop: 8, borderRadius: 10, border: "none", background: C.success, color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
+                ✅ 已是最後一則，完成
+              </button>
+            )}
           </div>
         </div>
       )}
