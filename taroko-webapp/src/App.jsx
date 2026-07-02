@@ -961,7 +961,10 @@ export default function App() {
                                       const r = await gasCall({ action: "confirmPending", row: row.rowNum });
                                       if (r.ok) {
                                         showToast("✅ 已移入精選表");
-                                        setPendingRows(rows => rows.filter(x => x.rowNum !== row.rowNum));
+                                        setPendingRows(rows => rows
+                                          .filter(x => x.rowNum !== row.rowNum)
+                                          .map(x => x.rowNum > row.rowNum ? { ...x, rowNum: x.rowNum - 1 } : x)
+                                        );
                                         if (r.movedRow) setNewsRows(rows => [...rows, r.movedRow]);
                                       } else showToast("❌ " + r.error, true);
                                     } catch(e) { showToast("❌ 連線失敗", true); }
@@ -974,7 +977,10 @@ export default function App() {
                                       const r = await gasCall({ action: "ignorePending", row: row.rowNum });
                                       if (r.ok) {
                                         showToast("✕ 已忽略");
-                                        setPendingRows(rows => rows.filter(x => x.rowNum !== row.rowNum));
+                                        setPendingRows(rows => rows
+                                          .filter(x => x.rowNum !== row.rowNum)
+                                          .map(x => x.rowNum > row.rowNum ? { ...x, rowNum: x.rowNum - 1 } : x)
+                                        );
                                       } else showToast("❌ " + r.error, true);
                                     } catch(e) { showToast("❌ 連線失敗", true); }
                                   }} style={{ flexShrink: 0, padding: "5px 12px", borderRadius: 6, border: "1px solid #e0c080", background: "#fff8e0", color: "#a05000", fontSize: "0.76em", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
