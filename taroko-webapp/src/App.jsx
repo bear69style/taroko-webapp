@@ -344,6 +344,21 @@ export default function App() {
     finally { setLoadingNews(false); }
   }, [showToast]);
 
+  // 【效能優化】背景靜默同步版本：不顯示 loading、不清空勾選，
+  // 只在資料真的有差異時才觸發畫面更新，避免使用者操作中被無聲重繪打斷體驗
+  const silentSyncNews = useCallback(async () => {
+    try {
+      const r = await gasCall({ action: "getNews" });
+      if (r.ok) {
+        setNewsRows(prev => {
+          const same = prev.length === r.rows.length &&
+            prev.every((row, i) => row.rowNum === r.rows[i].rowNum && row.title === r.rows[i].title && row.source === r.rows[i].source && row.url === r.rows[i].url);
+          return same ? prev : (r.rows || []);
+        });
+      }
+    } catch(e) { /* 背景同步失敗不打擾使用者，下一輪再試 */ }
+  }, []);
+
   // 載入待確認新聞
   const loadPending = useCallback(async () => {
     setLoadingPending(true);
@@ -354,6 +369,20 @@ export default function App() {
     finally { setLoadingPending(false); }
   }, []);
 
+  // 【效能優化】背景靜默同步版本
+  const silentSyncPending = useCallback(async () => {
+    try {
+      const r = await gasCall({ action: "getPending" });
+      if (r.ok) {
+        setPendingRows(prev => {
+          const same = prev.length === r.rows.length &&
+            prev.every((row, i) => row.rowNum === r.rows[i].rowNum && row.title === r.rows[i].title);
+          return same ? prev : (r.rows || []);
+        });
+      }
+    } catch(e) {}
+  }, []);
+
   useEffect(() => {
     const step = flow[current];
     if (step && step.isProofread) {
@@ -361,6 +390,23 @@ export default function App() {
       loadNews();
     }
   }, [current, phase]);
+
+  // 【效能優化＋多人協作保險】背景輕量同步：人工校對步驟時，每 45 秒悄悄核對一次資料，
+  // 避免多人同時操作時本地畫面跟試算表實際狀態脫節。
+  // 有動作執行中（running）、編輯視窗開著（editCell）、批次貼上視窗開著（batchPasteMode）時跳過該輪，
+  // 避免同步途中打斷使用者正在做的事。
+  useEffect(() => {
+    const step = flow[current];
+    if (!step || !step.isProofread) return;
+
+    const timer = setInterval(() => {
+      if (running || editCell || batchPasteMode) return; // 使用者操作中，這輪先跳過
+      silentSyncNews();
+      silentSyncPending();
+    }, 45000);
+
+    return () => clearInterval(timer);
+  }, [current, phase, running, editCell, batchPasteMode, silentSyncNews, silentSyncPending]);
 
   const runAction = async (label, action, stepIdx) => {
     if (running) return;
@@ -384,29 +430,43 @@ export default function App() {
     finally { setRunning(false); }
   };
 
-  // 刪除單列
+  // 【效能優化】刪除單列：本地移除該列，並把後面所有列的 rowNum 往前移一位
+  // （因為 sheet 刪列後真實列號會位移），不必再打 loadNews 整表重拉
   const deleteRow = async (rowNum, title) => {
     if (!window.confirm("確定刪除？\n「" + title.substring(0, 30) + "」")) return;
     try {
       const r = await gasCall({ action: "deleteRow", row: rowNum });
-      if (r.ok) { showToast("✅ 已刪除"); loadNews(); }
-      else showToast("❌ " + r.error, true);
+      if (r.ok) {
+        showToast("✅ 已刪除");
+        setNewsRows(rows => rows
+          .filter(row => row.rowNum !== rowNum)
+          .map(row => row.rowNum > rowNum ? { ...row, rowNum: row.rowNum - 1 } : row)
+        );
+      } else showToast("❌ " + r.error, true);
     } catch(e) { showToast("❌ 連線失敗", true); }
   };
 
-  // 批次刪除勾選的列
+  // 【效能優化】批次刪除勾選的列：一次 API 呼叫處理完，取代逐筆 await 的序列請求
   const deleteChecked = async () => {
     if (checkedRows.size === 0) return;
     if (!window.confirm("確定刪除選取的 " + checkedRows.size + " 則新聞？")) return;
     setRunning(true); setRunLabel("批次刪除");
     try {
-      // 從大列號開始刪，避免列號位移
-      const sorted = Array.from(checkedRows).sort((a, b) => b - a);
-      for (const rowNum of sorted) {
-        await gasCall({ action: "deleteRow", row: rowNum });
-      }
-      showToast("✅ 已刪除 " + checkedRows.size + " 則");
-      loadNews();
+      const rowsToDelete = Array.from(checkedRows);
+      const r = await gasCall({ action: "deleteRowsBatch", rows: rowsToDelete });
+      if (r.ok) {
+        showToast("✅ 已刪除 " + rowsToDelete.length + " 則");
+        const deletedSorted = [...rowsToDelete].sort((a, b) => a - b);
+        setNewsRows(rows => rows
+          .filter(row => !checkedRows.has(row.rowNum))
+          .map(row => {
+            // 每列前面被刪掉幾個，就要往前移幾位
+            const shift = deletedSorted.filter(d => d < row.rowNum).length;
+            return shift ? { ...row, rowNum: row.rowNum - shift } : row;
+          })
+        );
+        setCheckedRows(new Set());
+      } else showToast("❌ " + (r.error || ""), true);
     } catch(e) { showToast("❌ 連線失敗", true); }
     finally { setRunning(false); }
   };
@@ -895,20 +955,27 @@ export default function App() {
                                     style={{ flex: 1, fontSize: "0.7em", color: "#4a86c8", wordBreak: "break-all", lineHeight: 1.4, textDecoration: "none" }}>
                                     {row.url ? row.url.substring(0,55)+(row.url.length>55?"…":"") : "（無網址）"}
                                   </a>
+                                  {/* 【效能優化】移入：本地直接把該列從待確認移除、加進精選表，不必再打 loadPending/loadNews */}
                                   <button onClick={async () => {
                                     try {
                                       const r = await gasCall({ action: "confirmPending", row: row.rowNum });
-                                      if (r.ok) { showToast("✅ 已移入精選表"); loadPending(); loadNews(); }
-                                      else showToast("❌ " + r.error, true);
+                                      if (r.ok) {
+                                        showToast("✅ 已移入精選表");
+                                        setPendingRows(rows => rows.filter(x => x.rowNum !== row.rowNum));
+                                        if (r.movedRow) setNewsRows(rows => [...rows, r.movedRow]);
+                                      } else showToast("❌ " + r.error, true);
                                     } catch(e) { showToast("❌ 連線失敗", true); }
                                   }} style={{ flexShrink: 0, padding: "5px 12px", borderRadius: 6, border: "none", background: "#1a4733", color: "#fff", fontSize: "0.76em", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
                                     ✅ 移入
                                   </button>
+                                  {/* 【效能優化】忽略：本地直接移除該列，不必再打 loadPending 重拉整份清單 */}
                                   <button onClick={async () => {
                                     try {
                                       const r = await gasCall({ action: "ignorePending", row: row.rowNum });
-                                      if (r.ok) { showToast("✕ 已忽略"); loadPending(); }
-                                      else showToast("❌ " + r.error, true);
+                                      if (r.ok) {
+                                        showToast("✕ 已忽略");
+                                        setPendingRows(rows => rows.filter(x => x.rowNum !== row.rowNum));
+                                      } else showToast("❌ " + r.error, true);
                                     } catch(e) { showToast("❌ 連線失敗", true); }
                                   }} style={{ flexShrink: 0, padding: "5px 12px", borderRadius: 6, border: "1px solid #e0c080", background: "#fff8e0", color: "#a05000", fontSize: "0.76em", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
                                     ✕ 忽略
