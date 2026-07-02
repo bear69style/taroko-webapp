@@ -291,6 +291,8 @@ export default function App() {
   const [checkedRows, setCheckedRows] = useState(new Set());
   const [manualUrl, setManualUrl] = useState("");
   const [loadingConfig, setLoadingConfig] = useState(true);
+  const [pendingRows, setPendingRows] = useState([]);
+  const [loadingPending, setLoadingPending] = useState(false);
   const [batchPasteMode, setBatchPasteMode] = useState(false);
   const [batchUrls, setBatchUrls] = useState([]);
   const [previewUrl, setPreviewUrl] = useState(null);
@@ -342,9 +344,22 @@ export default function App() {
     finally { setLoadingNews(false); }
   }, [showToast]);
 
+  // 載入待確認新聞
+  const loadPending = useCallback(async () => {
+    setLoadingPending(true);
+    try {
+      const r = await gasCall({ action: "getPending" });
+      if (r.ok) setPendingRows(r.rows || []);
+    } catch(e) {}
+    finally { setLoadingPending(false); }
+  }, []);
+
   useEffect(() => {
     const step = flow[current];
-    if (step && step.isProofread) loadNews();
+    if (step && step.isProofread) {
+      loadPending();
+      loadNews();
+    }
   }, [current, phase]);
 
   const runAction = async (label, action, stepIdx) => {
@@ -850,6 +865,62 @@ export default function App() {
                 {/* ── 人工校對區 ── */}
                 {step.isProofread && (
                   <div>
+                    {/* ── 待確認新聞區 ── */}
+                    {(pendingRows.length > 0 || loadingPending) && (
+                      <div style={{ marginBottom: 16, background: "#fffbeb", border: "1.5px solid #f6d860", borderRadius: 10, overflow: "hidden" }}>
+                        <div style={{ padding: "10px 14px", background: "#fff8e0", borderBottom: "1px solid #f6d860", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                          <div>
+                            <span style={{ fontWeight: 700, fontSize: "1em", color: "#a05000" }}>📋 待確認新聞</span>
+                            <span style={{ fontSize: "0.8em", color: "#7a6000", marginLeft: 8 }}>請逐篇確認是否移入精選表</span>
+                          </div>
+                          <span style={{ fontSize: "0.8em", color: "#a05000", fontWeight: 700 }}>{pendingRows.length} 篇</span>
+                        </div>
+                        {loadingPending ? (
+                          <div style={{ padding: 16, textAlign: "center", color: "#8a8a82", fontSize: "0.88em" }}>載入中…</div>
+                        ) : (
+                          <div style={{ padding: "8px 10px", display: "flex", flexDirection: "column", gap: 8 }}>
+                            {pendingRows.map(row => (
+                              <div key={row.rowNum} style={{ background: "#fff", border: "1px solid #e8e0c0", borderRadius: 8, padding: "10px 12px" }}>
+                                {/* 雷達線 + 媒體 + 時間 */}
+                                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4, flexWrap: "wrap" }}>
+                                  <span style={{ fontSize: "0.7em", color: "#8a7000", background: "#fef3c0", padding: "1px 6px", borderRadius: 3 }}>{row.keyword}</span>
+                                  <span style={{ fontSize: "0.76em", fontWeight: 700, color: "#1a4733", background: "#eef6f0", padding: "2px 8px", borderRadius: 4 }}>{row.source}</span>
+                                  <span style={{ fontSize: "0.7em", color: "#9a9a92", marginLeft: "auto" }}>{row.time ? row.time.substring(5,16) : ""}</span>
+                                </div>
+                                {/* 標題 */}
+                                <div style={{ fontSize: "0.91em", color: "#2a2a28", lineHeight: 1.5, marginBottom: 8 }}>{row.title}</div>
+                                {/* 網址 + 操作按鈕 */}
+                                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                  <a href={row.url} target="_blank" rel="noreferrer"
+                                    style={{ flex: 1, fontSize: "0.7em", color: "#4a86c8", wordBreak: "break-all", lineHeight: 1.4, textDecoration: "none" }}>
+                                    {row.url ? row.url.substring(0,55)+(row.url.length>55?"…":"") : "（無網址）"}
+                                  </a>
+                                  <button onClick={async () => {
+                                    try {
+                                      const r = await gasCall({ action: "confirmPending", row: row.rowNum });
+                                      if (r.ok) { showToast("✅ 已移入精選表"); loadPending(); loadNews(); }
+                                      else showToast("❌ " + r.error, true);
+                                    } catch(e) { showToast("❌ 連線失敗", true); }
+                                  }} style={{ flexShrink: 0, padding: "5px 12px", borderRadius: 6, border: "none", background: "#1a4733", color: "#fff", fontSize: "0.76em", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
+                                    ✅ 移入
+                                  </button>
+                                  <button onClick={async () => {
+                                    try {
+                                      const r = await gasCall({ action: "ignorePending", row: row.rowNum });
+                                      if (r.ok) { showToast("✕ 已忽略"); loadPending(); }
+                                      else showToast("❌ " + r.error, true);
+                                    } catch(e) { showToast("❌ 連線失敗", true); }
+                                  }} style={{ flexShrink: 0, padding: "5px 12px", borderRadius: 6, border: "1px solid #e0c080", background: "#fff8e0", color: "#a05000", fontSize: "0.76em", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
+                                    ✕ 忽略
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {/* 工具列 */}
                     <div style={{ display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
                       <button onClick={() => loadNews()} style={{ padding: "7px 10px", borderRadius: 6, border: `1px solid ${accent}`, background: "#fff", color: accent, fontSize: "0.76em", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>🔄 重新載入</button>
