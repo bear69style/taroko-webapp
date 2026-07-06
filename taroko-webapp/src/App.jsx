@@ -11,21 +11,26 @@ async function gasCall(params = {}) {
   return res.json();
 }
 
+const KSNEWS_HUALIEN_URL = "https://www.ksnews.com.tw/hualiennews"; // 若此網址變動，GAS端 fetchKsnewsHualienAll() 裡的網址也要一併更新
+
 const FLOWS = {
   morning: [
-    { label: "撈取今日輿情", action: "fetchNews", btnLabel: "🔍 撈取今日新聞（Step 1）", desc: ["系統跑 14 條雷達線 + 中央社、自由時報、ETtoday、聯合報、公視直訂 RSS。"] },
+    { label: "撈取今日輿情", action: "fetchNews", btnLabel: "🔍 撈取今日新聞（Step 1）", desc: ["系統跑 16 條雷達線 + 中央社、自由時報、ETtoday、聯合報、公視直訂 RSS。"] },
     { label: "打底自動過濾", action: "filterNews", btnLabel: "🧹 自動清洗篩選（Step 2-A）", desc: ["系統自動清洗、去重、媒體正名。"] },
+    { label: "巡查更生日報（每日固定動作）", action: null, isKsnewsCheck: true, desc: ["更生日報無法被系統自動抓取，這是唯一需要人工補的環節。", "點下方連結開啟更生日報花蓮新聞頁面，花1-2分鐘掃過標題。", "看到跟太魯閣/國家公園業務相關的，先記下網址，稍後在人工校對步驟貼到「手動加入網址」。"] },
     { label: "人工校對（最重要）", action: null, isProofread: true, withOptional: true, withManualAdd: true },
     { label: "確認寄出", action: "send", btnLabel: "🚀 寄出日報（Step 3）", desc: ["按下後先自動掃描品質，通過才寄出。"], withLine: true, warnMsg: "若 LINE 額度用光，寄出後去信箱複製內文，手動貼到 LINE 群組。" },
   ],
   night: [
     { label: "撈取今晚輿情", action: "fetchNews", btnLabel: "🔍 撈取今日新聞（Step 1）", desc: ["前一晚先預查，先撈一輪當天的新聞。"] },
     { label: "打底自動過濾", action: "filterNews", btnLabel: "🧹 自動清洗篩選（Step 2-A）", desc: ["系統自動清洗篩選。"] },
+    { label: "巡查更生日報（每日固定動作）", action: null, isKsnewsCheck: true, desc: ["更生日報無法被系統自動抓取，這是唯一需要人工補的環節。", "點下方連結開啟更生日報花蓮新聞頁面，花1-2分鐘掃過標題。", "看到跟太魯閣/國家公園業務相關的，先記下網址，稍後在人工校對步驟貼到「手動加入網址」。"] },
     { label: "人工校對", action: null, isProofread: true },
     { label: "存入保險箱", action: "saveHeart", btnLabel: "💾 存檔今晚進度（交接保險箱）", desc: ["把今晚心血鎖進保險箱，明早同仁才能一鍵召回。"], warnMsg: "這一步是前一晚預查的重點，忘了存明早就白做了！" },
     { label: "（明早）還原昨晚進度", action: "restoreHeart", btnLabel: "⏪ 還原昨晚進度（清晨接班用）", desc: ["隔天清晨第一步：先點這個召回昨晚進度。"] },
     { label: "（明早）撈取今早新聞", action: "fetchNews", btnLabel: "🔍 撈取今日新聞（Step 1）", desc: ["還原後，重跑一次撈取今天最新的早報。"] },
     { label: "（明早）融合今早早報", action: "filterAppend", btnLabel: "🔄 融合今早早報（Step 2-B）", desc: ["把今早新撈的早報，與昨晚的心血融合在一起。"], warnMsg: "若忘記先撈早報就按這個，系統會自動攔截。" },
+    { label: "（明早）巡查更生日報", action: null, isKsnewsCheck: true, desc: ["同樣花1-2分鐘掃過更生日報今天的花蓮新聞標題。", "看到相關的先記URL，稍後在人工校對步驟貼到「手動加入網址」。"] },
     { label: "（明早）再次人工校對", action: null, isProofread: true, withOptional: true, withManualAdd: true },
     { label: "（明早）確認寄出", action: "send", btnLabel: "🚀 寄出日報（Step 3）", desc: ["最後校對後正式寄出。"], withLine: true, warnMsg: "前一晚預查的稿，寄出前記得進信箱改主旨日期！" },
   ],
@@ -919,6 +924,19 @@ export default function App() {
                         • 第{issue.row}列「{issue.title.substring(0,20)}{issue.title.length>20?"…":""}」→ {issue.type}
                       </div>
                     ))}
+                  </div>
+                )}
+
+                {/* ── 巡查更生日報（每日固定動作）── */}
+                {step.isKsnewsCheck && (
+                  <div>
+                    <a href={KSNEWS_HUALIEN_URL} target="_blank" rel="noopener noreferrer"
+                      style={{ display: "block", textAlign: "center", textDecoration: "none", padding: 13, borderRadius: 10, border: `1.5px solid ${accent}`, color: accent, fontWeight: 700, fontSize: "0.95em", marginBottom: 10 }}>
+                      🌐 開啟更生日報花蓮新聞頁面
+                    </a>
+                    <button onClick={() => advance(i)} style={btnStyle(false, true, false)}>
+                      ✓ 已巡查完成，進入下一步
+                    </button>
                   </div>
                 )}
 
